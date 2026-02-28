@@ -412,7 +412,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             <>
               <div style={S.hero}>
                 <h1 style={S.h1}>Sei stato invitato all’evento</h1>
-                <div style={S.heroEvent}>“{title}”</div>
+                <div style={S.heroEvent}>{title}</div>
               </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
@@ -645,7 +645,7 @@ const S: Record<string, React.CSSProperties> = {
 
   hero: { display: "grid", gap: 6, justifyItems: "start" },
   heroEvent: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 900,
     color: "rgba(255,255,255,0.86)",
     letterSpacing: -0.2,
@@ -698,7 +698,12 @@ const S: Record<string, React.CSSProperties> = {
     flex: 1,
   },
 
-  row: { display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" },
+  row: {
+    display: "grid",
+    gap: 10,
+    marginTop: 10,
+    justifyItems: "center",
+  },
   btnCol: {
     display: "grid",
     justifyItems: "center",
@@ -747,7 +752,7 @@ const S: Record<string, React.CSSProperties> = {
     background: "rgba(255,255,255,0.05)",
     padding: 14,
   },
-  partyTitle: { fontSize: 18, fontWeight: 900 },
+  partyTitle: { fontSize: 22, fontWeight: 900 },
   partyMeta: {
     marginTop: 8,
     display: "grid",
