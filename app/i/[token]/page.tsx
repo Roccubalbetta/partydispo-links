@@ -211,10 +211,12 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (error) throw error;
 
         if (!data) {
-          // Non blocchiamo il login, ma informiamo chiaramente.
+          // Probabile RLS: l'utente è autenticato ma non può leggere `party_invites`.
+          // Non blocchiamo la risposta: lasciamo l'utente in ready e consentiamo RSVP via RPC.
           setInvite(null);
-          setStep("error");
-          setErrorText("Invito non trovato o non più valido.");
+          setErrorText(
+            "Non riesco a mostrare i dettagli dell’invito (permessi). Puoi comunque rispondere qui sotto."
+          );
           return;
         }
 
@@ -234,10 +236,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       } catch (e) {
         console.error("[invite] post-login load error", e);
         if (!cancelled) {
-          // Manteniamo la UI, ma con un messaggio generico.
+          // Probabile RLS: non blocchiamo la UI, consentiamo RSVP via RPC.
           setInvite(null);
-          setStep("error");
-          setErrorText("Non sono riuscito a caricare l’invito dopo l’accesso.");
+          setErrorText(
+            "Non riesco a caricare i dettagli dell’invito (permessi). Puoi comunque rispondere qui sotto."
+          );
         }
       }
     })();
@@ -247,7 +250,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [step, sessionUserId, token]);
 
-  const title = invite?.parties?.title ?? "Invito PartyDispo";
+  const title = invite?.parties?.title ?? previewTitle;
   const location = invite?.parties?.location ?? "—";
   const date = fmtDate(invite?.parties?.party_date ?? null);
 
@@ -549,16 +552,16 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.sectionTitle}>Dettagli invito</div>
                   <div style={S.partyBox}>
                     <div style={S.partyTitle}>{title}</div>
-                    <div style={S.partyMeta}>
-                      <div>📍 {location}</div>
-                      {date ? <div>🗓️ {date}</div> : null}
-                    </div>
+                  <div style={S.partyMeta}>
+                    {invite?.parties ? <div>📍 {location}</div> : <div>📍 (dettagli non disponibili)</div>}
+                    {invite?.parties && date ? <div>🗓️ {date}</div> : null}
+                  </div>
                   </div>
 
                   <div style={S.divider} />
 
                   <div style={S.sectionTitle}>Conferma partecipazione</div>
-                  <div style={S.muted}>Ora puoi rispondere all’invito.</div>
+                  <div style={S.muted}>Rispondi all’invito. La risposta verrà registrata e notificata all’organizzatore.</div>
 
                   <div style={{ height: 10 }} />
 
