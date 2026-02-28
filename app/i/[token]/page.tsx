@@ -92,11 +92,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   // ✅ NEW: nasconde subito i bottoni dopo click, mentre inviamo la risposta
   const [pendingChoice, setPendingChoice] = useState<"accepted" | "declined" | null>(null);
 
-  // ✅ FLOW B:
-  // - Prima chiediamo login/registrazione (OTP email)
-  // - Solo DOPO che l'utente è autenticato carichiamo i dettagli dell'invito (se servono)
-  // - La validazione del token (esistenza/scadenza) avviene di fatto lato server nella RPC,
-  //   e lato client (post-login) nel loadInvite.
   useEffect(() => {
     let cancelled = false;
 
@@ -119,9 +114,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         setStep(uid ? "ready" : "needAuth");
       } catch (e) {
         console.error("[invite] auth bootstrap error", e);
-        if (!cancelled) {
-          setStep("needAuth");
-        }
+        if (!cancelled) setStep("needAuth");
       }
     })();
 
@@ -130,14 +123,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [token]);
 
-  // Mantieni sessionUserId aggiornato (quando l'utente completa l'OTP)
   useEffect(() => {
     const sub = supabase.auth.onAuthStateChange((_event, session) => {
       const uid = session?.user?.id ?? null;
       setSessionUserId(uid);
-      if (uid) {
-        setStep("ready");
-      }
+      if (uid) setStep("ready");
     });
     return () => {
       sub.data.subscription.unsubscribe();
@@ -155,19 +145,16 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
         if (error) {
           console.error("[invite] get_invite_public preview error", error);
-          if (!cancelled) {
-            setErrorText("Non riesco a caricare i dettagli dell’evento. Riprova tra poco.");
-          }
+          if (!cancelled) setErrorText("Non riesco a caricare i dettagli dell’evento. Riprova tra poco.");
           return;
         }
 
         const row = Array.isArray(data) ? data[0] : (data as any);
         if (!cancelled && row) {
           const t = row.party_title;
-          const day = fmtDay(row.party_date ?? null);
-
+          const d = fmtDay(row.party_date ?? null);
           if (typeof t === "string" && t.trim()) setPreviewTitle(t.trim());
-          if (day) setPreviewDay(day);
+          if (d) setPreviewDay(d);
         }
       } catch {
         // ignore
@@ -179,7 +166,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [token]);
 
-  // Carica dettagli invito SOLO dopo login (step=ready)
+  // Carica dettagli invito SOLO dopo login
   useEffect(() => {
     let cancelled = false;
 
@@ -202,7 +189,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           return;
         }
 
-        // scadenza (se la usi)
         if (row.expires_at) {
           const exp = new Date(row.expires_at).getTime();
           if (Number.isFinite(exp) && exp < Date.now()) {
@@ -218,7 +204,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       } catch (e) {
         console.error("[invite] post-login load error", e);
         if (!cancelled) {
-          // Probabile RLS: non blocchiamo la UI, consentiamo RSVP via RPC.
           setInvite(null);
           setErrorText("Non riesco a caricare i dettagli dell’invito (permessi). Puoi comunque rispondere qui sotto.");
         }
@@ -233,9 +218,40 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const title = invite?.party_title ?? previewTitle;
   const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
 
+  // Deep link (fallback se l'utente ha comunque l'app installata)
   const onOpenApp = () => {
     if (!token) return;
     window.location.href = `partydispo://i/${encodeURIComponent(token)}`;
+  };
+
+  // Store links (quando sarai sugli store)
+  const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
+  const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
+
+  // Fallback web finché non sei sugli store
+  const DOWNLOAD_FALLBACK_URL = process.env.NEXT_PUBLIC_DOWNLOAD_FALLBACK_URL || "https://partydispo.app/get";
+
+  const onGetApp = () => {
+    // Non pubblicata sugli store -> vai alla pagina download
+    if (!IOS_APP_STORE_URL && !ANDROID_PLAY_STORE_URL) {
+      window.location.href = DOWNLOAD_FALLBACK_URL;
+      return;
+    }
+
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+    if (isIOS && IOS_APP_STORE_URL) {
+      window.location.href = IOS_APP_STORE_URL;
+      return;
+    }
+    if (isAndroid && ANDROID_PLAY_STORE_URL) {
+      window.location.href = ANDROID_PLAY_STORE_URL;
+      return;
+    }
+
+    window.location.href = DOWNLOAD_FALLBACK_URL;
   };
 
   async function onSendCode() {
@@ -258,11 +274,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         return;
       }
 
-      // OTP email: Supabase crea user se non esiste, altrimenti login
       const { error } = await supabase.auth.signInWithOtp({
         email: e,
         options: {
-          // Se l’utente apre la mail dal telefono, rientra su questa stessa pagina invito
           emailRedirectTo: `https://partydispo.app/i/${encodeURIComponent(token)}`,
         },
       });
@@ -307,7 +321,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       setSessionUserId(uid);
 
-      // Salva/aggiorna profilo subito dopo verifica OTP
       const fn = firstName.trim();
       const ln = lastName.trim();
       const ph = normalizePhone(phone);
@@ -336,21 +349,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       if (upsertErr) throw upsertErr;
 
-      // Refresh preview fields immediately
-      try {
-        const { data: inv, error: invErr } = await supabase.rpc("get_invite_public", { p_token: token });
-        if (!invErr) {
-          const row = Array.isArray(inv) ? inv[0] : (inv as any);
-          if (row) {
-            if (typeof row.party_title === "string" && row.party_title.trim()) setPreviewTitle(row.party_title.trim());
-            const d = fmtDay(row.party_date ?? null);
-            if (d) setPreviewDay(d);
-          }
-        }
-      } catch {
-        // ignore
-      }
-
       setStep("ready");
     } catch (e) {
       console.error("[invite] verify otp error:", e);
@@ -362,13 +360,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   async function onRespond(next: "accepted" | "declined") {
     try {
-      // Nascondi immediatamente i bottoni e mostra stato “invio…”
-      setPendingChoice(next);
+      setPendingChoice(next); // nasconde i bottoni subito
 
       setBusy(true);
       setErrorText(null);
 
-      // RPC autenticata: valida token e aggiorna party_participants
       const { data, error } = await supabase.rpc("respond_party_invite_auth", {
         p_token: token,
         p_status: next,
@@ -409,8 +405,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               <h1 style={S.h1}>Ops</h1>
               <p style={S.muted}>{errorText}</p>
               <div style={{ height: 10 }} />
-              <button style={S.secondaryBtn} onClick={onOpenApp}>
-                Apri nell’app
+              <button style={S.secondaryBtn} onClick={onGetApp}>
+                Scarica l’app
               </button>
             </>
           ) : (
@@ -423,57 +419,22 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
               <div style={S.divider} />
 
-              {/* AUTH */}
               {step === "needAuth" ? (
                 <>
                   <div style={S.sectionTitle}>Accedi</div>
-                  <div style={S.muted}>Inserisci i tuoi dati. Ti invieremo un codice via email per confermare l’accesso.</div>
+                  <div style={S.muted}>
+                    Inserisci i tuoi dati. Ti invieremo un codice via email per confermare l’accesso.
+                  </div>
 
                   <div style={{ height: 10 }} />
 
-                  <input
-                    style={S.input}
-                    placeholder="Nome"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    autoCapitalize="words"
-                    autoCorrect="off"
-                  />
-
+                  <input style={S.input} placeholder="Nome" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                   <div style={{ height: 10 }} />
-
-                  <input
-                    style={S.input}
-                    placeholder="Cognome"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    autoCapitalize="words"
-                    autoCorrect="off"
-                  />
-
+                  <input style={S.input} placeholder="Cognome" value={lastName} onChange={(e) => setLastName(e.target.value)} />
                   <div style={{ height: 10 }} />
-
-                  <input
-                    style={S.input}
-                    placeholder="Telefono"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    inputMode="tel"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                  />
-
+                  <input style={S.input} placeholder="Telefono" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
                   <div style={{ height: 10 }} />
-
-                  <input
-                    style={S.input}
-                    placeholder="Mail"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    inputMode="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                  />
+                  <input style={S.input} placeholder="Mail" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" />
 
                   <div style={{ height: 10 }} />
 
@@ -492,9 +453,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
                       {busy ? "Invio…" : "Accedi"}
                     </button>
-
-                    <button style={S.secondaryBtn} onClick={onOpenApp}>
-                      Apri nell’app
+                    <button style={S.secondaryBtn} onClick={onGetApp}>
+                      Scarica l’app
                     </button>
                   </div>
                 </>
@@ -507,13 +467,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={{ height: 10 }} />
 
-                  <input
-                    style={S.input}
-                    placeholder="Codice OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    inputMode="numeric"
-                  />
+                  <input style={S.input} placeholder="Codice OTP" value={otp} onChange={(e) => setOtp(e.target.value)} inputMode="numeric" />
 
                   <div style={{ height: 10 }} />
 
@@ -529,7 +483,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 </>
               ) : null}
 
-              {/* RSVP (post-login) */}
               {step === "ready" ? (
                 <>
                   <div style={S.sectionTitle}>Dettagli invito</div>
@@ -558,8 +511,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                     <div style={{ height: 10 }} />
 
-                    <button style={S.primaryBtn} onClick={onOpenApp}>
-                      Apri nell’app
+                    <button style={S.primaryBtn} onClick={onGetApp}>
+                      Scarica l’app
                     </button>
 
                     <div style={S.ctaSmall}>Non vuoi scaricarla? Puoi comunque rispondere qui sotto.</div>
@@ -576,48 +529,28 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <div style={S.muted}>Sto inviando la tua risposta all’organizzatore…</div>
                   ) : (
                     <div style={S.row}>
-                      <button
-                        style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }}
-                        disabled={busy}
-                        onClick={() => onRespond("accepted")}
-                      >
+                      <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => onRespond("accepted")}>
                         {busy ? "Invio…" : "Ci sono"}
                       </button>
-
-                      <button
-                        style={{ ...S.secondaryBtn, opacity: busy ? 0.7 : 1 }}
-                        disabled={busy}
-                        onClick={() => onRespond("declined")}
-                      >
+                      <button style={{ ...S.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => onRespond("declined")}>
                         {busy ? "Invio…" : "Non ci sono"}
                       </button>
                     </div>
                   )}
-
-                  <div style={{ marginTop: 14, textAlign: "center", color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                    {sessionUserId ? (
-                      <>
-                        Utente: <code style={S.code}>{sessionUserId.slice(0, 8)}…</code>
-                      </>
-                    ) : null}
-                  </div>
                 </>
               ) : null}
 
               {step === "done" ? (
                 <div style={S.confirm}>
                   <div style={S.confirmTitle}>{resultStatus === "accepted" ? "✅ Perfetto, ci sei!" : "✅ Ok, ricevuto."}</div>
-
                   <div style={S.muted}>
                     {resultStatus === "accepted"
                       ? "La tua risposta è stata inviata all’organizzatore. Riceverai aggiornamenti quando verrai approvato."
                       : "La tua risposta è stata inviata all’organizzatore."}
                   </div>
-
                   <div style={{ height: 12 }} />
-
-                  <button style={S.primaryBtn} onClick={onOpenApp}>
-                    Apri nell’app
+                  <button style={S.primaryBtn} onClick={onGetApp}>
+                    Scarica l’app
                   </button>
                 </div>
               ) : null}
@@ -653,17 +586,6 @@ const S: Record<string, React.CSSProperties> = {
   container: { width: "100%", maxWidth: 520, position: "relative", marginTop: 12 },
 
   hero: { display: "grid", gap: 8, justifyItems: "start" },
-  heroSub: {
-    color: "rgba(255,255,255,0.62)",
-    fontSize: 14,
-    fontWeight: 700,
-  },
-  heroEvent: {
-    fontSize: 20,
-    fontWeight: 900,
-    color: "rgba(255,255,255,0.86)",
-    letterSpacing: -0.2,
-  },
 
   card: {
     borderRadius: 22,
@@ -712,18 +634,10 @@ const S: Record<string, React.CSSProperties> = {
     flex: 1,
   },
 
-  row: {
-    display: "grid",
-    gap: 10,
-    marginTop: 10,
-    justifyItems: "center",
-  },
-  btnCol: {
-    display: "grid",
-    justifyItems: "center",
-    gap: 10,
-    marginTop: 10,
-  },
+  row: { display: "grid", gap: 10, marginTop: 10, justifyItems: "center" },
+  btnCol: { display: "grid", justifyItems: "center", gap: 10, marginTop: 10 },
+
+  // ✅ Centrati ovunque
   primaryBtn: {
     height: 46,
     borderRadius: 14,
@@ -735,6 +649,9 @@ const S: Record<string, React.CSSProperties> = {
     color: "#111",
     width: "100%",
     maxWidth: 320,
+    display: "block",
+    marginLeft: "auto",
+    marginRight: "auto",
   },
   secondaryBtn: {
     height: 46,
@@ -747,7 +664,11 @@ const S: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.92)",
     width: "100%",
     maxWidth: 320,
+    display: "block",
+    marginLeft: "auto",
+    marginRight: "auto",
   },
+
   linkBtn: {
     width: "100%",
     height: 40,
@@ -767,27 +688,8 @@ const S: Record<string, React.CSSProperties> = {
     padding: 14,
   },
   partyTitle: { fontSize: 22, fontWeight: 900 },
-  partyMeta: {
-    marginTop: 8,
-    display: "grid",
-    gap: 6,
-    color: "rgba(255,255,255,0.70)",
-    fontSize: 13,
-  },
-  partyHint: {
-    marginTop: 6,
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
-    lineHeight: "16px",
-  },
-
-  ctaBox: {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    padding: 14,
-  },
-  ctaTitle: { fontWeight: 900, marginBottom: 6 },
+  partyMeta: { marginTop: 8, display: "grid", gap: 6, color: "rgba(255,255,255,0.70)", fontSize: 13 },
+  partyHint: { marginTop: 6, color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: "16px" },
 
   ctaBoxStrong: {
     borderRadius: 18,
@@ -795,30 +697,10 @@ const S: Record<string, React.CSSProperties> = {
     background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
     padding: 16,
   },
-  ctaTitleStrong: {
-    fontWeight: 900,
-    fontSize: 18,
-    marginBottom: 6,
-    letterSpacing: -0.2,
-  },
-  ctaTextStrong: {
-    color: "rgba(255,255,255,0.70)",
-    fontSize: 14,
-    lineHeight: "18px",
-  },
-  ctaList: {
-    marginTop: 10,
-    marginBottom: 0,
-    paddingLeft: 18,
-    display: "grid",
-    gap: 6,
-  },
-  ctaSmall: {
-    marginTop: 10,
-    textAlign: "center",
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
-  },
+  ctaTitleStrong: { fontWeight: 900, fontSize: 18, marginBottom: 6, letterSpacing: -0.2 },
+  ctaTextStrong: { color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: "18px" },
+  ctaList: { marginTop: 10, marginBottom: 0, paddingLeft: 18, display: "grid", gap: 6 },
+  ctaSmall: { marginTop: 10, textAlign: "center", color: "rgba(255,255,255,0.55)", fontSize: 12 },
 
   confirm: {
     marginTop: 12,
@@ -826,6 +708,10 @@ const S: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(255,255,255,0.05)",
     padding: 14,
+    display: "grid",
+    justifyItems: "center",
+    gap: 6,
+    textAlign: "center",
   },
   confirmTitle: { fontWeight: 900 },
 
