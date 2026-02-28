@@ -1,3 +1,4 @@
+// FLOW B: Show login first, only load invite after authentication
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -46,7 +47,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [resultStatus, setResultStatus] = useState<"accepted" | "declined" | null>(null);
 
-  // 1) carica invito (public select: deve essere permesso su party_invites/parties o via view)
+  // ✅ FLOW B:
+  // - Prima chiediamo login/registrazione (OTP email)
+  // - Solo DOPO che l'utente è autenticato carichiamo i dettagli dell'invito (se servono)
+  // - La validazione del token (esistenza/scadenza) avviene di fatto lato server nella RPC,
+  //   e lato client (post-login) nel loadInvite.
   useEffect(() => {
     let cancelled = false;
 
@@ -57,9 +62,54 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
         if (!token) {
           setStep("error");
-          setErrorText("Link non valido (token mancante).");
+          setErrorText("Link non valido (token mancante). ");
           return;
         }
+
+        const { data: sess } = await supabase.auth.getSession();
+        const uid = sess.session?.user?.id ?? null;
+        if (cancelled) return;
+
+        setSessionUserId(uid);
+        setStep(uid ? "ready" : "needAuth");
+      } catch (e) {
+        console.error("[invite] auth bootstrap error", e);
+        if (!cancelled) {
+          setStep("needAuth");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  // Mantieni sessionUserId aggiornato (quando l'utente completa l'OTP)
+  useEffect(() => {
+    const sub = supabase.auth.onAuthStateChange((_event, session) => {
+      const uid = session?.user?.id ?? null;
+      setSessionUserId(uid);
+      if (uid) {
+        setStep("ready");
+      }
+    });
+    return () => {
+      sub.data.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Carica dettagli invito SOLO dopo login (step=ready)
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        if (step !== "ready") return;
+        if (!sessionUserId) return;
+        if (!token) return;
+
+        setErrorText(null);
 
         const { data, error } = await supabase
           .from("party_invites")
@@ -82,16 +132,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           .maybeSingle();
 
         if (error) throw error;
+
         if (!data) {
+          // Non blocchiamo il login, ma informiamo chiaramente.
+          setInvite(null);
           setStep("error");
           setErrorText("Invito non trovato o non più valido.");
           return;
         }
 
-        // scadenza
+        // scadenza (se la usi)
         if (data.expires_at) {
           const exp = new Date(data.expires_at).getTime();
           if (Number.isFinite(exp) && exp < Date.now()) {
+            setInvite(null);
             setStep("error");
             setErrorText("Questo invito è scaduto.");
             return;
@@ -100,18 +154,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
         if (cancelled) return;
         setInvite(data as any);
-
-        // 2) controlla sessione
-        const { data: sess } = await supabase.auth.getSession();
-        const uid = sess.session?.user?.id ?? null;
-        setSessionUserId(uid);
-
-        setStep(uid ? "ready" : "needAuth");
       } catch (e) {
-        console.error("[invite] load error", e);
+        console.error("[invite] post-login load error", e);
         if (!cancelled) {
+          // Manteniamo la UI, ma con un messaggio generico.
+          setInvite(null);
           setStep("error");
-          setErrorText("Errore nel caricamento dell’invito.");
+          setErrorText("Non sono riuscito a caricare l’invito dopo l’accesso.");
         }
       }
     })();
@@ -119,20 +168,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [step, sessionUserId, token]);
 
-  // Mantieni sessionUserId aggiornato
-  useEffect(() => {
-    const sub = supabase.auth.onAuthStateChange((_event, session) => {
-      setSessionUserId(session?.user?.id ?? null);
-      if (session?.user?.id) setStep("ready");
-    });
-    return () => {
-      sub.data.subscription.unsubscribe();
-    };
-  }, []);
-
-  const title = invite?.parties?.title ?? "Festa";
+  const title = invite?.parties?.title ?? "Invito PartyDispo";
   const location = invite?.parties?.location ?? "—";
   const date = fmtDate(invite?.parties?.party_date ?? null);
 
@@ -156,7 +194,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       const { error } = await supabase.auth.signInWithOtp({
         email: e,
         options: {
-          // se l’utente apre il link email sul telefono, rientra su questa stessa pagina invito
+          // Se l’utente apre la mail dal telefono, rientra su questa stessa pagina invito
           emailRedirectTo: `https://partydispo.app/i/${encodeURIComponent(token)}`,
         },
       });
@@ -165,7 +203,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       setStep("verifyCode");
     } catch (e) {
-      console.error("[invite] send otp error", e);
+      console.error("[invite] send otp error:", e);
       setErrorText("Non sono riuscito a inviare il codice. Riprova.");
     } finally {
       setBusy(false);
@@ -202,7 +240,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       setSessionUserId(uid);
       setStep("ready");
     } catch (e) {
-      console.error("[invite] verify otp error", e);
+      console.error("[invite] verify otp error:", e);
       setErrorText("Codice non valido o scaduto. Riprova.");
     } finally {
       setBusy(false);
@@ -214,7 +252,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       setBusy(true);
       setErrorText(null);
 
-      // RPC autenticata
+      // RPC autenticata: valida token e aggiorna party_participants
       const { data, error } = await supabase.rpc("respond_party_invite_auth", {
         p_token: token,
         p_status: next,
@@ -229,8 +267,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         setErrorText("Non sono riuscito a registrare la risposta. Riprova.");
       }
     } catch (e) {
-      console.error("[invite] respond error", e);
-      setErrorText("Non sono riuscito a registrare la risposta. Riprova.");
+      console.error("[invite] respond error:", e);
+      // Se token è finto (es. <token>), qui finirà con invite_not_found lato DB.
+      setErrorText("Invito non valido oppure scaduto. Chiedi all’organizzatore di reinviarlo.");
     } finally {
       setBusy(false);
     }
@@ -253,24 +292,21 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           {step === "loading" ? (
             <div style={S.center}>
               <div style={S.spinner} />
-              <div style={S.muted}>Caricamento invito…</div>
+              <div style={S.muted}>Caricamento…</div>
             </div>
           ) : step === "error" ? (
             <>
               <h1 style={S.h1}>Ops</h1>
               <p style={S.muted}>{errorText}</p>
+              <div style={{ height: 10 }} />
+              <button style={S.secondaryBtn} onClick={onOpenApp}>
+                Apri nell’app
+              </button>
             </>
           ) : (
             <>
+              {/* FLOW B: prima accedi, poi mostriamo i dettagli */}
               <h1 style={S.h1}>Sei invitato 🎉</h1>
-
-              <div style={S.partyBox}>
-                <div style={S.partyTitle}>{title}</div>
-                <div style={S.partyMeta}>
-                  <div>📍 {location}</div>
-                  {date ? <div>🗓️ {date}</div> : null}
-                </div>
-              </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
 
@@ -339,11 +375,22 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 </>
               ) : null}
 
-              {/* RSVP */}
+              {/* RSVP (post-login) */}
               {step === "ready" ? (
                 <>
-                  <div style={S.sectionTitle}>Conferma</div>
-                  <div style={S.muted}>Accesso effettuato. Ora puoi rispondere all’invito.</div>
+                  <div style={S.sectionTitle}>Dettagli invito</div>
+                  <div style={S.partyBox}>
+                    <div style={S.partyTitle}>{title}</div>
+                    <div style={S.partyMeta}>
+                      <div>📍 {location}</div>
+                      {date ? <div>🗓️ {date}</div> : null}
+                    </div>
+                  </div>
+
+                  <div style={S.divider} />
+
+                  <div style={S.sectionTitle}>Conferma partecipazione</div>
+                  <div style={S.muted}>Ora puoi rispondere all’invito.</div>
 
                   <div style={{ height: 10 }} />
 
@@ -369,13 +416,23 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={S.ctaBox}>
                     <div style={S.ctaTitle}>Vuoi notifiche push e funzioni extra?</div>
-                    <div style={S.muted}>Scarica PartyDispo per aggiornamenti in tempo reale, chat e galleria completa.</div>
+                    <div style={S.muted}>
+                      Scarica PartyDispo per aggiornamenti in tempo reale, chat e galleria completa.
+                    </div>
 
                     <div style={{ height: 10 }} />
 
                     <button style={S.primaryBtn} onClick={onOpenApp}>
                       Apri nell’app
                     </button>
+                  </div>
+
+                  <div style={{ marginTop: 14, textAlign: "center", color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
+                    {sessionUserId ? (
+                      <>
+                        Utente: <code style={S.code}>{sessionUserId.slice(0, 8)}…</code>
+                      </>
+                    ) : null}
                   </div>
                 </>
               ) : null}
@@ -392,10 +449,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   </div>
                 </div>
               ) : null}
-
-              <div style={{ marginTop: 14, textAlign: "center", color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                {sessionUserId ? <>Utente: <code style={S.code}>{sessionUserId.slice(0, 8)}…</code></> : null}
-              </div>
             </>
           )}
         </div>
