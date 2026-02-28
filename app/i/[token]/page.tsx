@@ -19,7 +19,9 @@ type InviteRow = {
   } | null;
 };
 
-type Step = "loading" | "needAuth" | "verifyCode" | "needProfile" | "ready" | "done" | "error";
+type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
+
+type Gender = "male" | "female";
 
 function fmtDate(dateIso: string | null) {
   if (!dateIso) return null;
@@ -69,6 +71,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   }, [params, routeParams, pathname]);
 
   const [invite, setInvite] = useState<InviteRow | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>("Evento");
   const [step, setStep] = useState<Step>("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
 
@@ -77,7 +80,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [profileComplete, setProfileComplete] = useState(false);
+  const [gender, setGender] = useState<Gender>("male");
   const [busy, setBusy] = useState(false);
 
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
@@ -107,7 +110,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (cancelled) return;
 
         setSessionUserId(uid);
-        setStep(uid ? "needProfile" : "needAuth");
+        setStep(uid ? "ready" : "needAuth");
       } catch (e) {
         console.error("[invite] auth bootstrap error", e);
         if (!cancelled) {
@@ -127,7 +130,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       const uid = session?.user?.id ?? null;
       setSessionUserId(uid);
       if (uid) {
-        setStep("needProfile");
+        setStep("ready");
       }
     });
     return () => {
@@ -135,60 +138,43 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, []);
 
-  // Carica/valida profilo dopo login: prima di consentire RSVP richiediamo nome/cognome/telefono/email.
+  // Preview titolo evento (best-effort) anche senza login, per mostrare "Sei stato invitato all'evento ...".
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        if (step !== "needProfile") return;
-        if (!sessionUserId) return;
+        if (!token) return;
 
-        setBusy(true);
-        setErrorText(null);
-
-        // Proviamo a leggere un profilo esistente (se non esiste, l'utente lo compilerà)
         const { data, error } = await supabase
-          .from("profiles")
-          .select("first_name,last_name,phone,email")
-          .eq("id", sessionUserId)
+          .from("party_invites")
+          .select(
+            `
+            token,
+            parties (
+              title
+            )
+          `
+          )
+          .eq("token", token)
           .maybeSingle();
 
         if (error) {
-          // Se la tabella/colonne non esistono o RLS blocca, non blocchiamo subito:
-          // mostriamo comunque il form e tenteremo il salvataggio.
-          console.warn("[invite] profile read warning", error);
+          // Se RLS blocca il preview, restiamo sul fallback "Evento".
+          return;
         }
 
-        if (!cancelled && data) {
-          if (typeof data.email === "string" && data.email.trim() && !email) setEmail(String(data.email).trim());
-          if (typeof data.first_name === "string" && data.first_name.trim()) setFirstName(String(data.first_name));
-          if (typeof data.last_name === "string" && data.last_name.trim()) setLastName(String(data.last_name));
-          if (typeof data.phone === "string" && data.phone.trim()) setPhone(String(data.phone));
-
-          const ok =
-            (typeof data.first_name === "string" && data.first_name.trim().length > 0) &&
-            (typeof data.last_name === "string" && data.last_name.trim().length > 0) &&
-            (typeof data.phone === "string" && data.phone.trim().length > 0) &&
-            (typeof data.email === "string" && data.email.trim().length > 0);
-
-          setProfileComplete(ok);
-          if (ok) setStep("ready");
-        } else if (!cancelled) {
-          setProfileComplete(false);
-        }
-      } catch (e) {
-        console.error("[invite] profile bootstrap error", e);
-        if (!cancelled) setProfileComplete(false);
-      } finally {
-        if (!cancelled) setBusy(false);
+        const t = (data as any)?.parties?.title;
+        if (!cancelled && typeof t === "string" && t.trim()) setPreviewTitle(t.trim());
+      } catch {
+        // ignore
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [step, sessionUserId]);
+  }, [token]);
 
   // Carica dettagli invito SOLO dopo login (step=ready)
   useEffect(() => {
@@ -197,7 +183,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     (async () => {
       try {
         if (step !== "ready") return;
-        if (!profileComplete) return;
         if (!sessionUserId) return;
         if (!token) return;
 
@@ -260,58 +245,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [step, sessionUserId, token, profileComplete]);
-  async function onSaveProfile() {
-    try {
-      setBusy(true);
-      setErrorText(null);
-
-      if (!sessionUserId) {
-        setErrorText("Sessione non valida. Riapri il link.");
-        return;
-      }
-
-      const e = email.trim().toLowerCase();
-      const fn = firstName.trim();
-      const ln = lastName.trim();
-      const ph = normalizePhone(phone);
-
-      if (!fn || !ln || !ph || !e) {
-        setErrorText("Compila nome, cognome, telefono ed email.");
-        return;
-      }
-
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-        setErrorText("Inserisci un’email valida.");
-        return;
-      }
-
-      // Salviamo su tabella profili (standard Supabase starter: public.profiles)
-      const { error } = await supabase
-        .from("profiles")
-        .upsert(
-          {
-            id: sessionUserId,
-            first_name: fn,
-            last_name: ln,
-            phone: ph,
-            email: e,
-            updated_at: new Date().toISOString(),
-          } as any,
-          { onConflict: "id" }
-        );
-
-      if (error) throw error;
-
-      setProfileComplete(true);
-      setStep("ready");
-    } catch (e) {
-      console.error("[invite] save profile error", e);
-      setErrorText("Non sono riuscito a salvare i tuoi dati. Riprova.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  }, [step, sessionUserId, token]);
 
   const title = invite?.parties?.title ?? "Invito PartyDispo";
   const location = invite?.parties?.location ?? "—";
@@ -328,6 +262,15 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       setErrorText(null);
 
       const e = email.trim().toLowerCase();
+      const fn = firstName.trim();
+      const ln = lastName.trim();
+      const ph = normalizePhone(phone);
+
+      if (!fn || !ln || !ph || !e) {
+        setErrorText("Compila nome, cognome, telefono ed email.");
+        return;
+      }
+
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
         setErrorText("Inserisci un’email valida.");
         return;
@@ -381,6 +324,36 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       }
 
       setSessionUserId(uid);
+
+      // Salva/aggiorna profilo subito dopo verifica OTP
+      const fn = firstName.trim();
+      const ln = lastName.trim();
+      const ph = normalizePhone(phone);
+      const em = e;
+
+      if (!fn || !ln || !ph || !em) {
+        setStep("needAuth");
+        setErrorText("Completa i tuoi dati prima di continuare.");
+        return;
+      }
+
+      const { error: upsertErr } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            id: uid,
+            first_name: fn,
+            last_name: ln,
+            phone: ph,
+            email: em,
+            gender,
+            updated_at: new Date().toISOString(),
+          } as any,
+          { onConflict: "id" }
+        );
+
+      if (upsertErr) throw upsertErr;
+
       setStep("ready");
     } catch (e) {
       console.error("[invite] verify otp error:", e);
@@ -443,8 +416,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             <>
               <div style={S.hero}>
                 <div style={S.heroLogo}>P</div>
-                <h1 style={S.h1}>Sei invitato 🎉</h1>
-                <div style={S.heroSub}>PartyDispo</div>
+                <h1 style={S.h1}>Sei stato invitato all’evento</h1>
+                <div style={S.heroEvent}>“{invite?.parties?.title ?? previewTitle}”</div>
               </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
@@ -456,39 +429,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 <>
                   <div style={S.sectionTitle}>Accedi</div>
                   <div style={S.muted}>
-                    Ti invieremo un codice. Se hai già un account, accederai. Se è la prima volta, lo creeremo automaticamente.
-                  </div>
-
-                  <div style={{ height: 10 }} />
-
-                  <input
-                    style={S.input}
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    inputMode="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                  />
-
-                  <div style={{ height: 10 }} />
-
-                  <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
-                    {busy ? "Invio…" : "Invia codice"}
-                  </button>
-
-                  <div style={{ height: 10 }} />
-
-                  <button style={S.secondaryBtn} onClick={onOpenApp}>
-                    Apri nell’app
-                  </button>
-                </>
-              ) : null}
-              {step === "needProfile" ? (
-                <>
-                  <div style={S.sectionTitle}>Completa i tuoi dati</div>
-                  <div style={S.muted}>
-                    Inserisci nome, cognome e telefono per permettere all’organizzatore di riconoscerti e gestire la festa.
+                    Inserisci i tuoi dati. Ti invieremo un codice via email per confermare l’accesso.
                   </div>
 
                   <div style={{ height: 10 }} />
@@ -529,7 +470,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <input
                     style={S.input}
-                    placeholder="Email"
+                    placeholder="Mail"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     inputMode="email"
@@ -539,8 +480,27 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={{ height: 10 }} />
 
-                  <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSaveProfile}>
-                    {busy ? "Salvataggio…" : "Continua"}
+                  <div style={S.genderRow}>
+                    <button
+                      type="button"
+                      style={gender === "male" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setGender("male")}
+                    >
+                      Uomo
+                    </button>
+                    <button
+                      type="button"
+                      style={gender === "female" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setGender("female")}
+                    >
+                      Donna
+                    </button>
+                  </div>
+
+                  <div style={{ height: 10 }} />
+
+                  <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
+                    {busy ? "Invio…" : "Accedi"}
                   </button>
 
                   <div style={{ height: 10 }} />
@@ -554,7 +514,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               {step === "verifyCode" ? (
                 <>
                   <div style={S.sectionTitle}>Inserisci il codice</div>
-                  <div style={S.muted}>Ti abbiamo inviato un codice via email.</div>
+                  <div style={S.muted}>Ti abbiamo inviato un codice OTP via email.</div>
 
                   <div style={{ height: 10 }} />
 
@@ -620,9 +580,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.divider} />
 
                   <div style={S.ctaBox}>
-                    <div style={S.ctaTitle}>Vuoi notifiche push e funzioni extra?</div>
+                    <div style={S.ctaTitle}>Scarica PartyDispo 🔥</div>
                     <div style={S.muted}>
-                      Scarica PartyDispo per aggiornamenti in tempo reale, chat e galleria completa.
+                      Con l’app ricevi notifiche push, puoi vedere la galleria, aggiornamenti in tempo reale e tutte le funzioni complete.
                     </div>
 
                     <div style={{ height: 10 }} />
@@ -684,6 +644,7 @@ const S: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
   container: { width: "100%", maxWidth: 520, position: "relative", marginTop: 12 },
+
   hero: { display: "grid", gap: 6, justifyItems: "start" },
   heroLogo: {
     width: 40,
@@ -696,7 +657,12 @@ const S: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.12)",
     fontWeight: 900,
   },
-  heroSub: { fontSize: 12, color: "rgba(255,255,255,0.62)", fontWeight: 700 },
+  heroEvent: {
+    fontSize: 16,
+    fontWeight: 900,
+    color: "rgba(255,255,255,0.86)",
+    letterSpacing: -0.2,
+  },
 
   card: {
     borderRadius: 22,
@@ -708,18 +674,42 @@ const S: Record<string, React.CSSProperties> = {
   h1: { margin: 0, fontSize: 28, fontWeight: 900, letterSpacing: -0.3 },
   muted: { color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: "18px" },
 
-  partyBox: {
-    marginTop: 12,
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.05)",
-    padding: 14,
-  },
-  partyTitle: { fontSize: 18, fontWeight: 900 },
-  partyMeta: { marginTop: 8, display: "grid", gap: 6, color: "rgba(255,255,255,0.70)", fontSize: 13 },
-
   divider: { height: 1, background: "rgba(255,255,255,0.10)", margin: "16px 0" },
   sectionTitle: { fontWeight: 900, marginBottom: 6 },
+
+  input: {
+    width: "100%",
+    height: 46,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(0,0,0,0.20)",
+    color: "rgba(255,255,255,0.92)",
+    padding: "0 12px",
+    outline: "none",
+    fontWeight: 700,
+  },
+
+  genderRow: { display: "flex", gap: 10 },
+  genderBtn: {
+    height: 44,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.82)",
+    fontWeight: 900,
+    cursor: "pointer",
+    flex: 1,
+  },
+  genderBtnActive: {
+    height: 44,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(255,255,255,0.92)",
+    color: "#111",
+    fontWeight: 900,
+    cursor: "pointer",
+    flex: 1,
+  },
 
   row: { display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" },
   primaryBtn: {
@@ -756,16 +746,21 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     cursor: "pointer",
   },
-  input: {
-    width: "100%",
-    height: 46,
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(0,0,0,0.20)",
-    color: "rgba(255,255,255,0.92)",
-    padding: "0 12px",
-    outline: "none",
-    fontWeight: 700,
+
+  partyBox: {
+    marginTop: 12,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.05)",
+    padding: 14,
+  },
+  partyTitle: { fontSize: 18, fontWeight: 900 },
+  partyMeta: {
+    marginTop: 8,
+    display: "grid",
+    gap: 6,
+    color: "rgba(255,255,255,0.70)",
+    fontSize: 13,
   },
 
   ctaBox: {
