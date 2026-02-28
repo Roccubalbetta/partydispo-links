@@ -1,7 +1,7 @@
-// FLOW B: Show login first, only load invite after authentication
+// app/i/[token]/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -16,6 +16,9 @@ type InviteRow = {
 
 type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
 type Gender = "male" | "female";
+
+const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
+const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
 
 function fmtDay(dateIso: string | null) {
   if (!dateIso) return null;
@@ -42,27 +45,27 @@ function normalizePhone(p: string) {
   return p.replace(/[^\d+]/g, "").trim();
 }
 
+function isValidEmail(e: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim().toLowerCase());
+}
+
 export default function InvitePage({ params }: { params: { token: string } }) {
   const routeParams = useParams<{ token?: string | string[] }>();
   const pathname = usePathname();
 
   const token = useMemo(() => {
-    // 1) Preferred: params passed by Next
     const fromProps = params?.token;
     if (typeof fromProps === "string" && fromProps.trim()) return fromProps;
 
-    // 2) Client-side route params
     const rp = routeParams?.token;
     if (typeof rp === "string" && rp.trim()) return rp;
     if (Array.isArray(rp) && typeof rp[0] === "string" && rp[0].trim()) return rp[0];
 
-    // 3) Parse from pathname (/i/<token>)
     if (typeof pathname === "string") {
       const m = pathname.match(/^\/i\/([^/?#]+)/);
       if (m && m[1]) return decodeURIComponent(m[1]);
     }
 
-    // 4) Fallback: querystring (?token=...)
     if (typeof window !== "undefined") {
       const qs = new URLSearchParams(window.location.search);
       const q = qs.get("token");
@@ -75,23 +78,58 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [invite, setInvite] = useState<InviteRow | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("Evento");
   const [previewDay, setPreviewDay] = useState<string | null>(null);
+
   const [step, setStep] = useState<Step>("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
+  // Dati utente (sempre richiesti)
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [gender, setGender] = useState<Gender>("male");
-  const [busy, setBusy] = useState(false);
 
+  // OTP
+  const [otp, setOtp] = useState("");
+
+  const [busy, setBusy] = useState(false);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+
+  // RSVP result
   const [resultStatus, setResultStatus] = useState<"accepted" | "declined" | null>(null);
 
-  // ✅ NEW: nasconde subito i bottoni dopo click, mentre inviamo la risposta
+  // Nasconde subito i bottoni dopo click
   const [pendingChoice, setPendingChoice] = useState<"accepted" | "declined" | null>(null);
 
+  const title = invite?.party_title ?? previewTitle;
+  const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
+
+  const onOpenApp = () => {
+    if (!token) return;
+    window.location.href = `partydispo://i/${encodeURIComponent(token)}`;
+  };
+
+  const onGetApp = () => {
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+    if (isIOS && IOS_APP_STORE_URL) {
+      window.location.href = IOS_APP_STORE_URL;
+      return;
+    }
+    if (isAndroid && ANDROID_PLAY_STORE_URL) {
+      window.location.href = ANDROID_PLAY_STORE_URL;
+      return;
+    }
+
+    // Non ancora sugli store: tentiamo comunque il deeplink (se per caso è installata)
+    // e mostriamo un messaggio coerente.
+    onOpenApp();
+    setErrorText("L’app non è ancora disponibile sugli store. Riprova più avanti.");
+  };
+
+  // Bootstrap: token + session
   useEffect(() => {
     let cancelled = false;
 
@@ -111,10 +149,15 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (cancelled) return;
 
         setSessionUserId(uid);
-        setStep(uid ? "ready" : "needAuth");
+
+        // Anche se c'è sessione, il flusso che vuoi è: form dati -> OTP.
+        // Quindi restiamo su needAuth finché non si completa l’OTP.
+        setStep("needAuth");
       } catch (e) {
-        console.error("[invite] auth bootstrap error", e);
-        if (!cancelled) setStep("needAuth");
+        console.error("[invite] bootstrap error", e);
+        if (!cancelled) {
+          setStep("needAuth");
+        }
       }
     })();
 
@@ -123,18 +166,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [token]);
 
-  useEffect(() => {
-    const sub = supabase.auth.onAuthStateChange((_event, session) => {
-      const uid = session?.user?.id ?? null;
-      setSessionUserId(uid);
-      if (uid) setStep("ready");
-    });
-    return () => {
-      sub.data.subscription.unsubscribe();
-    };
-  }, []);
-
-  // Preview (titolo + giorno) via RPC, anche senza login.
+  // Preview (titolo + giorno) via RPC, anche senza login
   useEffect(() => {
     let cancelled = false;
 
@@ -153,6 +185,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (!cancelled && row) {
           const t = row.party_title;
           const d = fmtDay(row.party_date ?? null);
+
           if (typeof t === "string" && t.trim()) setPreviewTitle(t.trim());
           if (d) setPreviewDay(d);
         }
@@ -166,14 +199,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [token]);
 
-  // Carica dettagli invito SOLO dopo login
+  // Dopo login (OTP completato) carichiamo dettagli invito (sempre via RPC public)
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
         if (step !== "ready") return;
-        if (!sessionUserId) return;
         if (!token) return;
 
         setErrorText(null);
@@ -189,6 +221,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           return;
         }
 
+        // scadenza (se la usi)
         if (row.expires_at) {
           const exp = new Date(row.expires_at).getTime();
           if (Number.isFinite(exp) && exp < Date.now()) {
@@ -205,7 +238,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         console.error("[invite] post-login load error", e);
         if (!cancelled) {
           setInvite(null);
-          setErrorText("Non riesco a caricare i dettagli dell’invito (permessi). Puoi comunque rispondere qui sotto.");
+          setErrorText("Non riesco a caricare tutti i dettagli dell’invito. Puoi comunque rispondere.");
         }
       }
     })();
@@ -213,71 +246,36 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [step, sessionUserId, token]);
-
-  const title = invite?.party_title ?? previewTitle;
-  const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
-
-  // Deep link (fallback se l'utente ha comunque l'app installata)
-  const onOpenApp = () => {
-    if (!token) return;
-    window.location.href = `partydispo://i/${encodeURIComponent(token)}`;
-  };
-
-  // Store links (quando sarai sugli store)
-  const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
-  const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
-
-  // Fallback web finché non sei sugli store
-  const DOWNLOAD_FALLBACK_URL = process.env.NEXT_PUBLIC_DOWNLOAD_FALLBACK_URL || "https://partydispo.app/get";
-
-  const onGetApp = () => {
-    // Non pubblicata sugli store -> vai alla pagina download
-    if (!IOS_APP_STORE_URL && !ANDROID_PLAY_STORE_URL) {
-      window.location.href = DOWNLOAD_FALLBACK_URL;
-      return;
-    }
-
-    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
-    const isAndroid = /Android/i.test(ua);
-    const isIOS = /iPhone|iPad|iPod/i.test(ua);
-
-    if (isIOS && IOS_APP_STORE_URL) {
-      window.location.href = IOS_APP_STORE_URL;
-      return;
-    }
-    if (isAndroid && ANDROID_PLAY_STORE_URL) {
-      window.location.href = ANDROID_PLAY_STORE_URL;
-      return;
-    }
-
-    window.location.href = DOWNLOAD_FALLBACK_URL;
-  };
+  }, [step, token]);
 
   async function onSendCode() {
     try {
       setBusy(true);
       setErrorText(null);
 
-      const e = email.trim().toLowerCase();
       const fn = firstName.trim();
       const ln = lastName.trim();
       const ph = normalizePhone(phone);
+      const em = email.trim().toLowerCase();
 
-      if (!fn || !ln || !ph || !e) {
+      if (!fn || !ln || !ph || !em) {
         setErrorText("Compila nome, cognome, telefono ed email.");
         return;
       }
-
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+      if (!isValidEmail(em)) {
         setErrorText("Inserisci un’email valida.");
         return;
       }
+      if (!token) {
+        setErrorText("Link non valido.");
+        return;
+      }
 
+      // OTP email: se user esiste -> login, se non esiste -> create user
       const { error } = await supabase.auth.signInWithOtp({
-        email: e,
+        email: em,
         options: {
-          emailRedirectTo: `https://partydispo.app/i/${encodeURIComponent(token)}`,
+          emailRedirectTo: `https://www.partydispo.app/i/${encodeURIComponent(token)}`,
         },
       });
 
@@ -297,16 +295,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       setBusy(true);
       setErrorText(null);
 
-      const e = email.trim().toLowerCase();
+      const em = email.trim().toLowerCase();
       const code = otp.trim();
 
       if (!code) {
-        setErrorText("Inserisci il codice.");
+        setErrorText("Inserisci il codice OTP.");
+        return;
+      }
+      if (!isValidEmail(em)) {
+        setErrorText("Email non valida.");
         return;
       }
 
       const { data, error } = await supabase.auth.verifyOtp({
-        email: e,
+        email: em,
         token: code,
         type: "email",
       });
@@ -321,16 +323,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       setSessionUserId(uid);
 
+      // Upsert profilo: se esiste -> update, se non esiste -> insert
       const fn = firstName.trim();
       const ln = lastName.trim();
       const ph = normalizePhone(phone);
-      const em = e;
-
-      if (!fn || !ln || !ph || !em) {
-        setStep("needAuth");
-        setErrorText("Completa i tuoi dati prima di continuare.");
-        return;
-      }
 
       const { error: upsertErr } = await supabase
         .from("profiles")
@@ -349,6 +345,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       if (upsertErr) throw upsertErr;
 
+      // Reset RSVP UI state
+      setPendingChoice(null);
+      setResultStatus(null);
+
       setStep("ready");
     } catch (e) {
       console.error("[invite] verify otp error:", e);
@@ -360,11 +360,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   async function onRespond(next: "accepted" | "declined") {
     try {
-      setPendingChoice(next); // nasconde i bottoni subito
+      // spariscono subito
+      setPendingChoice(next);
 
       setBusy(true);
       setErrorText(null);
 
+      // RPC autenticata: valida token e aggiorna party_participants
       const { data, error } = await supabase.rpc("respond_party_invite_auth", {
         p_token: token,
         p_status: next,
@@ -374,7 +376,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       if (data?.ok) {
         setResultStatus(next);
-        setErrorText(null);
         setStep("done");
       } else {
         setPendingChoice(null);
@@ -404,55 +405,88 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             <>
               <h1 style={S.h1}>Ops</h1>
               <p style={S.muted}>{errorText}</p>
-              <div style={{ height: 10 }} />
-              <button style={S.secondaryBtn} onClick={onGetApp}>
-                Scarica l’app
-              </button>
+              <div style={{ height: 12 }} />
+              <div style={S.btnCol}>
+                <button style={S.primaryBtn} onClick={onGetApp}>
+                  Scarica l’app
+                </button>
+                <button style={S.secondaryBtn} onClick={onOpenApp}>
+                  Apri l’app (se già installata)
+                </button>
+              </div>
             </>
           ) : (
             <>
               <div style={S.hero}>
                 <h1 style={S.h1}>Sei stato invitato all’evento</h1>
+                <div style={S.heroEvent}>{previewTitle}</div>
+                {previewDay ? <div style={S.heroSub}>🗓️ {previewDay}</div> : null}
               </div>
 
-              {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
+              {errorText ? <p style={{ ...S.muted, marginTop: 10, textAlign: "center" }}>{errorText}</p> : null}
 
               <div style={S.divider} />
 
+              {/* STEP 1: DATI + INVIO OTP */}
               {step === "needAuth" ? (
                 <>
-                  <div style={S.sectionTitle}>Accedi</div>
-                  <div style={S.muted}>
+                  <div style={S.sectionTitleCenter}>Accedi</div>
+                  <div style={{ ...S.muted, textAlign: "center" }}>
                     Inserisci i tuoi dati. Ti invieremo un codice via email per confermare l’accesso.
                   </div>
 
-                  <div style={{ height: 10 }} />
+                  <div style={{ height: 12 }} />
 
                   <input style={S.input} placeholder="Nome" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                   <div style={{ height: 10 }} />
                   <input style={S.input} placeholder="Cognome" value={lastName} onChange={(e) => setLastName(e.target.value)} />
                   <div style={{ height: 10 }} />
-                  <input style={S.input} placeholder="Telefono" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
+                  <input
+                    style={S.input}
+                    placeholder="Telefono"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    inputMode="tel"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
                   <div style={{ height: 10 }} />
-                  <input style={S.input} placeholder="Mail" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" />
+                  <input
+                    style={S.input}
+                    placeholder="Mail"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
 
-                  <div style={{ height: 10 }} />
+                  <div style={{ height: 12 }} />
 
                   <div style={S.genderRow}>
-                    <button type="button" style={gender === "male" ? S.genderBtnActive : S.genderBtn} onClick={() => setGender("male")}>
+                    <button
+                      type="button"
+                      style={gender === "male" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setGender("male")}
+                    >
                       Uomo
                     </button>
-                    <button type="button" style={gender === "female" ? S.genderBtnActive : S.genderBtn} onClick={() => setGender("female")}>
+                    <button
+                      type="button"
+                      style={gender === "female" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setGender("female")}
+                    >
                       Donna
                     </button>
                   </div>
 
-                  <div style={{ height: 10 }} />
+                  <div style={{ height: 12 }} />
 
                   <div style={S.btnCol}>
                     <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
-                      {busy ? "Invio…" : "Accedi"}
+                      {busy ? "Invio…" : "Invia codice OTP"}
                     </button>
+
                     <button style={S.secondaryBtn} onClick={onGetApp}>
                       Scarica l’app
                     </button>
@@ -460,38 +494,48 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 </>
               ) : null}
 
+              {/* STEP 2: VERIFICA OTP */}
               {step === "verifyCode" ? (
                 <>
-                  <div style={S.sectionTitle}>Inserisci il codice</div>
-                  <div style={S.muted}>Ti abbiamo inviato un codice OTP via email.</div>
+                  <div style={S.sectionTitleCenter}>Inserisci il codice</div>
+                  <div style={{ ...S.muted, textAlign: "center" }}>
+                    Ti abbiamo inviato un codice OTP via email. Inseriscilo qui sotto.
+                  </div>
 
-                  <div style={{ height: 10 }} />
+                  <div style={{ height: 12 }} />
 
-                  <input style={S.input} placeholder="Codice OTP" value={otp} onChange={(e) => setOtp(e.target.value)} inputMode="numeric" />
+                  <input
+                    style={S.input}
+                    placeholder="Codice OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    inputMode="numeric"
+                  />
 
-                  <div style={{ height: 10 }} />
+                  <div style={{ height: 12 }} />
 
-                  <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onVerifyCode}>
-                    {busy ? "Verifica…" : "Verifica e continua"}
-                  </button>
+                  <div style={S.btnCol}>
+                    <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onVerifyCode}>
+                      {busy ? "Verifica…" : "Verifica e continua"}
+                    </button>
 
-                  <div style={{ height: 10 }} />
-
-                  <button style={S.linkBtn} disabled={busy} onClick={onSendCode}>
-                    Reinvia codice
-                  </button>
+                    <button style={S.linkBtn} disabled={busy} onClick={onSendCode}>
+                      Reinvia codice
+                    </button>
+                  </div>
                 </>
               ) : null}
 
+              {/* STEP 3: POST OTP - EVENTO + CTA APP + RSVP */}
               {step === "ready" ? (
                 <>
-                  <div style={S.sectionTitle}>Dettagli invito</div>
-
                   <div style={S.partyBox}>
                     <div style={S.partyTitle}>{title}</div>
                     <div style={S.partyMeta}>
                       {day ? <div>🗓️ {day}</div> : <div>🗓️ (data non disponibile)</div>}
-                      <div style={S.partyHint}>Luogo e orario saranno visibili solo dentro l'app.</div>
+                      <div style={S.partyHint}>
+                        Luogo e orario saranno visibili solo dentro l’app (dopo conferma/approvazione).
+                      </div>
                     </div>
                   </div>
 
@@ -502,56 +546,93 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <div style={S.ctaTextStrong}>
                       Con l’app ricevi:
                       <ul style={S.ctaList}>
-                        <li>Notifiche istantanee quando la tua presenza viene approvata</li>
-                        <li>Luogo e orario dell’evento disponibili in anteprima sull’app</li>
-                        <li>Aggiornamenti live direttamente dall’organizzatore</li>
-                        <li>Scatta foto uniche con la nostra modalità vintage esclusiva</li>
+                        <li>Notifiche istantanee quando vieni approvato</li>
+                        <li>Luogo e orario dell’evento (appena disponibili)</li>
+                        <li>Info e aggiornamenti in tempo reale</li>
+                        <li>Scatti “vintage” con un tocco, stile disposable camera</li>
                       </ul>
                     </div>
 
-                    <div style={{ height: 10 }} />
+                    <div style={{ height: 12 }} />
 
-                    <button style={S.primaryBtn} onClick={onGetApp}>
-                      Scarica l’app
-                    </button>
+                    <div style={S.btnCol}>
+                      <button style={S.primaryBtn} onClick={onGetApp}>
+                        Scarica l’app
+                      </button>
+                      <button style={S.secondaryBtn} onClick={onOpenApp}>
+                        Apri l’app (se già installata)
+                      </button>
+                    </div>
 
-                    <div style={S.ctaSmall}>Non vuoi scaricarla? Puoi comunque rispondere qui sotto.</div>
+                    <div style={S.ctaSmall}>
+                      Non vuoi scaricarla? Puoi comunque rispondere qui sotto (non potrai modificare la scelta).
+                    </div>
                   </div>
 
                   <div style={S.divider} />
 
-                  <div style={S.sectionTitle}>Conferma partecipazione</div>
-                  <div style={S.muted}>Rispondi all’invito. La risposta verrà inviata all’organizzatore.</div>
+                  <div style={S.sectionTitleCenter}>Conferma partecipazione</div>
+                  <div style={{ ...S.muted, textAlign: "center" }}>
+                    La tua risposta verrà inviata all’organizzatore. Dopo l’invio non potrai cambiarla.
+                  </div>
 
-                  <div style={{ height: 10 }} />
+                  <div style={{ height: 12 }} />
 
                   {pendingChoice ? (
-                    <div style={S.muted}>Sto inviando la tua risposta all’organizzatore…</div>
+                    <div style={{ ...S.muted, textAlign: "center" }}>Sto inviando la tua risposta all’organizzatore…</div>
                   ) : (
                     <div style={S.row}>
-                      <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => onRespond("accepted")}>
+                      <button
+                        style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }}
+                        disabled={busy}
+                        onClick={() => onRespond("accepted")}
+                      >
                         {busy ? "Invio…" : "Ci sono"}
                       </button>
-                      <button style={{ ...S.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => onRespond("declined")}>
+
+                      <button
+                        style={{ ...S.secondaryBtn, opacity: busy ? 0.7 : 1 }}
+                        disabled={busy}
+                        onClick={() => onRespond("declined")}
+                      >
                         {busy ? "Invio…" : "Non ci sono"}
                       </button>
                     </div>
                   )}
+
+                  <div style={S.debug}>
+                    {sessionUserId ? (
+                      <>
+                        Utente: <code style={S.code}>{sessionUserId.slice(0, 8)}…</code>
+                      </>
+                    ) : null}
+                  </div>
                 </>
               ) : null}
 
+              {/* STEP 4: DONE */}
               {step === "done" ? (
                 <div style={S.confirm}>
-                  <div style={S.confirmTitle}>{resultStatus === "accepted" ? "✅ Perfetto, ci sei!" : "✅ Ok, ricevuto."}</div>
-                  <div style={S.muted}>
-                    {resultStatus === "accepted"
-                      ? "La tua risposta è stata inviata all’organizzatore. Riceverai aggiornamenti quando verrai approvato."
-                      : "La tua risposta è stata inviata all’organizzatore."}
+                  <div style={S.confirmTitle}>
+                    {resultStatus === "accepted" ? "✅ Presenza confermata!" : "✅ Risposta inviata!"}
                   </div>
+
+                  <div style={{ ...S.muted, textAlign: "center" }}>
+                    {resultStatus === "accepted"
+                      ? "Hai confermato che parteciperai. La tua risposta è stata inviata all’organizzatore."
+                      : "Hai indicato che non parteciperai. La tua risposta è stata inviata all’organizzatore."}
+                  </div>
+
                   <div style={{ height: 12 }} />
-                  <button style={S.primaryBtn} onClick={onGetApp}>
-                    Scarica l’app
-                  </button>
+
+                  <div style={S.btnCol}>
+                    <button style={S.primaryBtn} onClick={onGetApp}>
+                      Scarica l’app
+                    </button>
+                    <button style={S.secondaryBtn} onClick={onOpenApp}>
+                      Apri l’app (se già installata)
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </>
@@ -585,8 +666,6 @@ const S: Record<string, React.CSSProperties> = {
   },
   container: { width: "100%", maxWidth: 520, position: "relative", marginTop: 12 },
 
-  hero: { display: "grid", gap: 8, justifyItems: "start" },
-
   card: {
     borderRadius: 22,
     border: "1px solid rgba(255,255,255,0.10)",
@@ -594,11 +673,17 @@ const S: Record<string, React.CSSProperties> = {
     boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
     padding: 18,
   },
-  h1: { margin: 0, fontSize: 28, fontWeight: 900, letterSpacing: -0.3 },
+
+  hero: { display: "grid", gap: 8, justifyItems: "center", textAlign: "center" },
+  heroSub: { color: "rgba(255,255,255,0.62)", fontSize: 14, fontWeight: 800 },
+  heroEvent: { fontSize: 18, fontWeight: 950, color: "rgba(255,255,255,0.88)", letterSpacing: -0.2 },
+
+  h1: { margin: 0, fontSize: 28, fontWeight: 950, letterSpacing: -0.3, textAlign: "center" },
   muted: { color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: "18px" },
 
   divider: { height: 1, background: "rgba(255,255,255,0.10)", margin: "16px 0" },
-  sectionTitle: { fontWeight: 900, marginBottom: 6 },
+
+  sectionTitleCenter: { fontWeight: 950, marginBottom: 6, textAlign: "center" },
 
   input: {
     width: "100%",
@@ -609,17 +694,17 @@ const S: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.92)",
     padding: "0 12px",
     outline: "none",
-    fontWeight: 700,
+    fontWeight: 800,
   },
 
-  genderRow: { display: "flex", gap: 10 },
+  genderRow: { display: "flex", gap: 10, justifyContent: "center" },
   genderBtn: {
     height: 44,
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(0,0,0,0.18)",
     color: "rgba(255,255,255,0.82)",
-    fontWeight: 900,
+    fontWeight: 950,
     cursor: "pointer",
     flex: 1,
   },
@@ -629,77 +714,93 @@ const S: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.22)",
     background: "rgba(255,255,255,0.92)",
     color: "#111",
-    fontWeight: 900,
+    fontWeight: 950,
     cursor: "pointer",
     flex: 1,
   },
 
-  row: { display: "grid", gap: 10, marginTop: 10, justifyItems: "center" },
-  btnCol: { display: "grid", justifyItems: "center", gap: 10, marginTop: 10 },
+  btnCol: {
+    display: "grid",
+    justifyItems: "center",
+    gap: 10,
+    marginTop: 6,
+  },
 
-  // ✅ Centrati ovunque
+  row: {
+    display: "grid",
+    gap: 10,
+    marginTop: 10,
+    justifyItems: "center",
+  },
+
   primaryBtn: {
     height: 46,
     borderRadius: 14,
     border: 0,
     padding: "0 14px",
-    fontWeight: 900,
+    fontWeight: 950,
     cursor: "pointer",
     background: "rgba(255,255,255,0.92)",
     color: "#111",
     width: "100%",
     maxWidth: 320,
-    display: "block",
-    marginLeft: "auto",
-    marginRight: "auto",
   },
   secondaryBtn: {
     height: 46,
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.18)",
     padding: "0 14px",
-    fontWeight: 900,
+    fontWeight: 950,
     cursor: "pointer",
     background: "transparent",
     color: "rgba(255,255,255,0.92)",
     width: "100%",
     maxWidth: 320,
-    display: "block",
-    marginLeft: "auto",
-    marginRight: "auto",
   },
-
   linkBtn: {
     width: "100%",
+    maxWidth: 320,
     height: 40,
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(255,255,255,0.04)",
     color: "rgba(255,255,255,0.92)",
-    fontWeight: 800,
+    fontWeight: 900,
     cursor: "pointer",
   },
 
   partyBox: {
-    marginTop: 12,
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(255,255,255,0.05)",
     padding: 14,
+    textAlign: "center",
   },
-  partyTitle: { fontSize: 22, fontWeight: 900 },
-  partyMeta: { marginTop: 8, display: "grid", gap: 6, color: "rgba(255,255,255,0.70)", fontSize: 13 },
-  partyHint: { marginTop: 6, color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: "16px" },
+  partyTitle: { fontSize: 22, fontWeight: 950 },
+  partyMeta: {
+    marginTop: 10,
+    display: "grid",
+    gap: 6,
+    color: "rgba(255,255,255,0.70)",
+    fontSize: 13,
+  },
+  partyHint: {
+    marginTop: 6,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    lineHeight: "16px",
+  },
 
   ctaBoxStrong: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.14)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
     padding: 16,
+    textAlign: "center",
   },
-  ctaTitleStrong: { fontWeight: 900, fontSize: 18, marginBottom: 6, letterSpacing: -0.2 },
+  ctaTitleStrong: { fontWeight: 950, fontSize: 18, marginBottom: 8, letterSpacing: -0.2 },
   ctaTextStrong: { color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: "18px" },
-  ctaList: { marginTop: 10, marginBottom: 0, paddingLeft: 18, display: "grid", gap: 6 },
+  ctaList: { marginTop: 10, marginBottom: 0, paddingLeft: 18, display: "grid", gap: 6, textAlign: "left" },
   ctaSmall: { marginTop: 10, textAlign: "center", color: "rgba(255,255,255,0.55)", fontSize: 12 },
 
   confirm: {
@@ -710,11 +811,12 @@ const S: Record<string, React.CSSProperties> = {
     padding: 14,
     display: "grid",
     justifyItems: "center",
-    gap: 6,
+    gap: 8,
     textAlign: "center",
   },
-  confirmTitle: { fontWeight: 900 },
+  confirmTitle: { fontWeight: 950, fontSize: 16 },
 
+  debug: { marginTop: 14, textAlign: "center", color: "rgba(255,255,255,0.45)", fontSize: 12 },
   code: { background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 10 },
 
   center: { display: "grid", justifyItems: "center", gap: 10, padding: "18px 0" },
