@@ -7,32 +7,26 @@ import { supabase } from "@/lib/supabase";
 
 type InviteRow = {
   token: string;
-  role: "guest" | "organizer";
+  role: "guest" | "organizer" | string;
   party_id: string;
   expires_at: string | null;
-  parties?: {
-    id: string;
-    title: string;
-    location: string | null;
-    party_date: string | null;
-    organizer_id: string;
-  } | null;
+  party_title: string | null;
+  party_date: string | null;
 };
 
 type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
 
 type Gender = "male" | "female";
 
-function fmtDate(dateIso: string | null) {
+function fmtDay(dateIso: string | null) {
   if (!dateIso) return null;
   const d = new Date(dateIso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString("it-IT", {
+  return d.toLocaleDateString("it-IT", {
     weekday: "short",
     day: "2-digit",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+    year: "numeric",
   });
 }
 
@@ -72,6 +66,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const [invite, setInvite] = useState<InviteRow | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("Evento");
+  const [previewDay, setPreviewDay] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
 
@@ -138,7 +133,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, []);
 
-  // Preview titolo evento (best-effort) anche senza login, per mostrare "Sei stato invitato all'evento ...".
+  // Preview (titolo + giorno) via RPC, anche senza login.
   useEffect(() => {
     let cancelled = false;
 
@@ -146,26 +141,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       try {
         if (!token) return;
 
-        const { data, error } = await supabase
-          .from("party_invites")
-          .select(
-            `
-            token,
-            parties (
-              title
-            )
-          `
-          )
-          .eq("token", token)
-          .maybeSingle();
-
+        const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
         if (error) {
-          // Se RLS blocca il preview, restiamo sul fallback "Evento".
+          // Se per qualunque motivo non riusciamo, restiamo sul fallback.
           return;
         }
 
-        const t = (data as any)?.parties?.title;
-        if (!cancelled && typeof t === "string" && t.trim()) setPreviewTitle(t.trim());
+        const row = Array.isArray(data) ? data[0] : data;
+        const t = row?.party_title;
+        const day = fmtDay(row?.party_date ?? null);
+
+        if (!cancelled) {
+          if (typeof t === "string" && t.trim()) setPreviewTitle(t.trim());
+          if (day) setPreviewDay(day);
+        }
       } catch {
         // ignore
       }
@@ -188,41 +177,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
         setErrorText(null);
 
-        const { data, error } = await supabase
-          .from("party_invites")
-          .select(
-            `
-            token,
-            role,
-            party_id,
-            expires_at,
-            parties (
-              id,
-              title,
-              location,
-              party_date,
-              organizer_id
-            )
-          `
-          )
-          .eq("token", token)
-          .maybeSingle();
-
+        const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
         if (error) throw error;
 
-        if (!data) {
-          // Probabile RLS: l'utente è autenticato ma non può leggere `party_invites`.
-          // Non blocchiamo la risposta: lasciamo l'utente in ready e consentiamo RSVP via RPC.
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) {
           setInvite(null);
-          setErrorText(
-            "Non riesco a mostrare i dettagli dell’invito (permessi). Puoi comunque rispondere qui sotto."
-          );
+          setStep("error");
+          setErrorText("Invito non trovato o non più valido.");
           return;
         }
 
         // scadenza (se la usi)
-        if (data.expires_at) {
-          const exp = new Date(data.expires_at).getTime();
+        if (row.expires_at) {
+          const exp = new Date(row.expires_at).getTime();
           if (Number.isFinite(exp) && exp < Date.now()) {
             setInvite(null);
             setStep("error");
@@ -232,7 +200,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         }
 
         if (cancelled) return;
-        setInvite(data as any);
+        setInvite(row as any);
       } catch (e) {
         console.error("[invite] post-login load error", e);
         if (!cancelled) {
@@ -250,9 +218,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [step, sessionUserId, token]);
 
-  const title = invite?.parties?.title ?? previewTitle;
-  const location = invite?.parties?.location ?? "—";
-  const date = fmtDate(invite?.parties?.party_date ?? null);
+  const title = invite?.party_title ?? previewTitle;
+  const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
 
   const onOpenApp = () => {
     if (!token) return;
@@ -419,7 +386,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             <>
               <div style={S.hero}>
                 <h1 style={S.h1}>Sei stato invitato all’evento</h1>
-                <div style={S.heroEvent}>“{invite?.parties?.title ?? previewTitle}”</div>
+                <div style={S.heroEvent}>“{title}”</div>
               </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
@@ -552,10 +519,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.sectionTitle}>Dettagli invito</div>
                   <div style={S.partyBox}>
                     <div style={S.partyTitle}>{title}</div>
-                  <div style={S.partyMeta}>
-                    {invite?.parties ? <div>📍 {location}</div> : <div>📍 (dettagli non disponibili)</div>}
-                    {invite?.parties && date ? <div>🗓️ {date}</div> : null}
-                  </div>
+                    <div style={S.partyMeta}>
+                      {day ? <div>🗓️ {day}</div> : <div>🗓️ (data non disponibile)</div>}
+                    </div>
                   </div>
 
                   <div style={S.divider} />
@@ -588,7 +554,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.ctaBox}>
                     <div style={S.ctaTitle}>Scarica PartyDispo 🔥</div>
                     <div style={S.muted}>
-                      Con l’app ricevi notifiche push, puoi vedere la galleria, aggiornamenti in tempo reale e tutte le funzioni complete.
+                      Se vuoi ricevere aggiornamenti su luogo e orario dell’evento (disponibili dopo la conferma/approvazione), scarica l’app.
                     </div>
 
                     <div style={{ height: 10 }} />
@@ -652,17 +618,6 @@ const S: Record<string, React.CSSProperties> = {
   container: { width: "100%", maxWidth: 520, position: "relative", marginTop: 12 },
 
   hero: { display: "grid", gap: 6, justifyItems: "start" },
-  heroLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "rgba(255,255,255,0.10)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    fontWeight: 900,
-  },
   heroEvent: {
     fontSize: 16,
     fontWeight: 900,
