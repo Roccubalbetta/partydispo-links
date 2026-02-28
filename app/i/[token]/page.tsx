@@ -15,7 +15,6 @@ type InviteRow = {
 };
 
 type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
-
 type Gender = "male" | "female";
 
 function fmtDay(dateIso: string | null) {
@@ -89,6 +88,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [resultStatus, setResultStatus] = useState<"accepted" | "declined" | null>(null);
+
+  // ✅ NEW: nasconde subito i bottoni dopo click, mentre inviamo la risposta
+  const [pendingChoice, setPendingChoice] = useState<"accepted" | "declined" | null>(null);
 
   // ✅ FLOW B:
   // - Prima chiediamo login/registrazione (OTP email)
@@ -218,9 +220,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (!cancelled) {
           // Probabile RLS: non blocchiamo la UI, consentiamo RSVP via RPC.
           setInvite(null);
-          setErrorText(
-            "Non riesco a caricare i dettagli dell’invito (permessi). Puoi comunque rispondere qui sotto."
-          );
+          setErrorText("Non riesco a caricare i dettagli dell’invito (permessi). Puoi comunque rispondere qui sotto.");
         }
       }
     })();
@@ -350,6 +350,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       } catch {
         // ignore
       }
+
       setStep("ready");
     } catch (e) {
       console.error("[invite] verify otp error:", e);
@@ -361,6 +362,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   async function onRespond(next: "accepted" | "declined") {
     try {
+      // Nascondi immediatamente i bottoni e mostra stato “invio…”
+      setPendingChoice(next);
+
       setBusy(true);
       setErrorText(null);
 
@@ -374,13 +378,15 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       if (data?.ok) {
         setResultStatus(next);
+        setErrorText(null);
         setStep("done");
       } else {
+        setPendingChoice(null);
         setErrorText("Non sono riuscito a registrare la risposta. Riprova.");
       }
     } catch (e) {
       console.error("[invite] respond error:", e);
-      // Se token è finto (es. <token>), qui finirà con invite_not_found lato DB.
+      setPendingChoice(null);
       setErrorText("Invito non valido oppure scaduto. Chiedi all’organizzatore di reinviarlo.");
     } finally {
       setBusy(false);
@@ -392,7 +398,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       <div style={S.bg} />
 
       <div style={S.container}>
-
         <div style={S.card}>
           {step === "loading" ? (
             <div style={S.center}>
@@ -412,7 +417,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             <>
               <div style={S.hero}>
                 <h1 style={S.h1}>Sei stato invitato all’evento</h1>
-                <div style={S.heroSub}>{day ? `🗓️ ${day}` : ""}</div>
               </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
@@ -423,9 +427,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               {step === "needAuth" ? (
                 <>
                   <div style={S.sectionTitle}>Accedi</div>
-                  <div style={S.muted}>
-                    Inserisci i tuoi dati. Ti invieremo un codice via email per confermare l’accesso.
-                  </div>
+                  <div style={S.muted}>Inserisci i tuoi dati. Ti invieremo un codice via email per confermare l’accesso.</div>
 
                   <div style={{ height: 10 }} />
 
@@ -476,18 +478,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={{ height: 10 }} />
 
                   <div style={S.genderRow}>
-                    <button
-                      type="button"
-                      style={gender === "male" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setGender("male")}
-                    >
+                    <button type="button" style={gender === "male" ? S.genderBtnActive : S.genderBtn} onClick={() => setGender("male")}>
                       Uomo
                     </button>
-                    <button
-                      type="button"
-                      style={gender === "female" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setGender("female")}
-                    >
+                    <button type="button" style={gender === "female" ? S.genderBtnActive : S.genderBtn} onClick={() => setGender("female")}>
                       Donna
                     </button>
                   </div>
@@ -495,11 +489,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={{ height: 10 }} />
 
                   <div style={S.btnCol}>
-                    <button
-                      style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }}
-                      disabled={busy}
-                      onClick={onSendCode}
-                    >
+                    <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
                       {busy ? "Invio…" : "Accedi"}
                     </button>
 
@@ -548,9 +538,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <div style={S.partyTitle}>{title}</div>
                     <div style={S.partyMeta}>
                       {day ? <div>🗓️ {day}</div> : <div>🗓️ (data non disponibile)</div>}
-                      <div style={S.partyHint}>
-                        Luogo e orario saranno visibili dopo la conferma e l’approvazione dell’organizzatore.
-                      </div>
+                      <div style={S.partyHint}>Luogo e orario saranno visibili solo dentro l'app.</div>
                     </div>
                   </div>
 
@@ -561,9 +549,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <div style={S.ctaTextStrong}>
                       Con l’app ricevi:
                       <ul style={S.ctaList}>
-                        <li>Notifiche quando vieni approvato</li>
-                        <li>Luogo e orario dell’evento (appena disponibili)</li>
-                        <li>Info e aggiornamenti in tempo reale</li>
+                        <li>Notifiche istantanee quando la tua presenza viene approvata</li>
+                        <li>Luogo e orario dell’evento disponibili in anteprima sull’app</li>
+                        <li>Aggiornamenti live direttamente dall’organizzatore</li>
+                        <li>Scatta foto uniche con la nostra modalità vintage esclusiva</li>
                       </ul>
                     </div>
 
@@ -573,37 +562,37 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                       Apri nell’app
                     </button>
 
-                    <div style={S.ctaSmall}>
-                      Non vuoi scaricarla? Puoi comunque rispondere qui sotto.
-                    </div>
+                    <div style={S.ctaSmall}>Non vuoi scaricarla? Puoi comunque rispondere qui sotto.</div>
                   </div>
 
                   <div style={S.divider} />
 
                   <div style={S.sectionTitle}>Conferma partecipazione</div>
-                  <div style={S.muted}>
-                    Rispondi all’invito. La risposta verrà registrata e notificata all’organizzatore.
-                  </div>
+                  <div style={S.muted}>Rispondi all’invito. La risposta verrà inviata all’organizzatore.</div>
 
                   <div style={{ height: 10 }} />
 
-                  <div style={S.row}>
-                    <button
-                      style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }}
-                      disabled={busy}
-                      onClick={() => onRespond("accepted")}
-                    >
-                      {busy ? "Invio…" : "Ci sono"}
-                    </button>
+                  {pendingChoice ? (
+                    <div style={S.muted}>Sto inviando la tua risposta all’organizzatore…</div>
+                  ) : (
+                    <div style={S.row}>
+                      <button
+                        style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }}
+                        disabled={busy}
+                        onClick={() => onRespond("accepted")}
+                      >
+                        {busy ? "Invio…" : "Ci sono"}
+                      </button>
 
-                    <button
-                      style={{ ...S.secondaryBtn, opacity: busy ? 0.7 : 1 }}
-                      disabled={busy}
-                      onClick={() => onRespond("declined")}
-                    >
-                      {busy ? "Invio…" : "Non ci sono"}
-                    </button>
-                  </div>
+                      <button
+                        style={{ ...S.secondaryBtn, opacity: busy ? 0.7 : 1 }}
+                        disabled={busy}
+                        onClick={() => onRespond("declined")}
+                      >
+                        {busy ? "Invio…" : "Non ci sono"}
+                      </button>
+                    </div>
+                  )}
 
                   <div style={{ marginTop: 14, textAlign: "center", color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
                     {sessionUserId ? (
@@ -617,14 +606,19 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
               {step === "done" ? (
                 <div style={S.confirm}>
-                  <div style={S.confirmTitle}>
-                    {resultStatus === "accepted" ? "✅ Presenza confermata!" : "✅ Risposta registrata."}
-                  </div>
+                  <div style={S.confirmTitle}>{resultStatus === "accepted" ? "✅ Perfetto, ci sei!" : "✅ Ok, ricevuto."}</div>
+
                   <div style={S.muted}>
                     {resultStatus === "accepted"
-                      ? "Hai confermato che parteciperai."
-                      : "Hai indicato che non parteciperai."}
+                      ? "La tua risposta è stata inviata all’organizzatore. Riceverai aggiornamenti quando verrai approvato."
+                      : "La tua risposta è stata inviata all’organizzatore."}
                   </div>
+
+                  <div style={{ height: 12 }} />
+
+                  <button style={S.primaryBtn} onClick={onOpenApp}>
+                    Apri nell’app
+                  </button>
                 </div>
               ) : null}
             </>
