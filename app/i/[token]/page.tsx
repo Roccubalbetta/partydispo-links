@@ -415,7 +415,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           ) : (
             <>
               <div style={S.hero}>
-                <div style={S.heroLogo}>P</div>
                 <h1 style={S.h1}>Sei stato invitato all’evento</h1>
                 <div style={S.heroEvent}>“{invite?.parties?.title ?? previewTitle}”</div>
               </div>
@@ -499,15 +498,19 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={{ height: 10 }} />
 
-                  <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
-                    {busy ? "Invio…" : "Accedi"}
-                  </button>
+                  <div style={S.btnCol}>
+                    <button
+                      style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }}
+                      disabled={busy}
+                      onClick={onSendCode}
+                    >
+                      {busy ? "Invio…" : "Accedi"}
+                    </button>
 
-                  <div style={{ height: 10 }} />
-
-                  <button style={S.secondaryBtn} onClick={onOpenApp}>
-                    Apri nell’app
-                  </button>
+                    <button style={S.secondaryBtn} onClick={onOpenApp}>
+                      Apri nell’app
+                    </button>
+                  </div>
                 </>
               ) : null}
 
@@ -712,6 +715,12 @@ const S: Record<string, React.CSSProperties> = {
   },
 
   row: { display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" },
+  btnCol: {
+    display: "grid",
+    justifyItems: "center",
+    gap: 10,
+    marginTop: 10,
+  },
   primaryBtn: {
     height: 46,
     borderRadius: 14,
@@ -721,8 +730,8 @@ const S: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     background: "rgba(255,255,255,0.92)",
     color: "#111",
-    flex: 1,
-    minWidth: 160,
+    width: "100%",
+    maxWidth: 320,
   },
   secondaryBtn: {
     height: 46,
@@ -733,8 +742,8 @@ const S: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     background: "transparent",
     color: "rgba(255,255,255,0.92)",
-    flex: 1,
-    minWidth: 160,
+    width: "100%",
+    maxWidth: 320,
   },
   linkBtn: {
     width: "100%",
