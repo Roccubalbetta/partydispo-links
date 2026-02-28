@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type InviteRow = {
@@ -34,7 +35,34 @@ function fmtDate(dateIso: string | null) {
 }
 
 export default function InvitePage({ params }: { params: { token: string } }) {
-  const token = useMemo(() => params?.token ?? "", [params]);
+  const routeParams = useParams<{ token?: string | string[] }>();
+  const pathname = usePathname();
+
+  const token = useMemo(() => {
+    // 1) Preferred: params passed by Next
+    const fromProps = params?.token;
+    if (typeof fromProps === "string" && fromProps.trim()) return fromProps;
+
+    // 2) Client-side route params
+    const rp = routeParams?.token;
+    if (typeof rp === "string" && rp.trim()) return rp;
+    if (Array.isArray(rp) && typeof rp[0] === "string" && rp[0].trim()) return rp[0];
+
+    // 3) Parse from pathname (/i/<token>)
+    if (typeof pathname === "string") {
+      const m = pathname.match(/^\/i\/([^/?#]+)/);
+      if (m && m[1]) return decodeURIComponent(m[1]);
+    }
+
+    // 4) Fallback: querystring (?token=...)
+    if (typeof window !== "undefined") {
+      const qs = new URLSearchParams(window.location.search);
+      const q = qs.get("token");
+      if (q && q.trim()) return q;
+    }
+
+    return "";
+  }, [params, routeParams, pathname]);
 
   const [invite, setInvite] = useState<InviteRow | null>(null);
   const [step, setStep] = useState<Step>("loading");
@@ -62,7 +90,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
         if (!token) {
           setStep("error");
-          setErrorText("Link non valido (token mancante). ");
+          setErrorText("Link non valido: token mancante o URL non corretta.");
           return;
         }
 
