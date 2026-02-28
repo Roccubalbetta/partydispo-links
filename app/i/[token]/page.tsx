@@ -412,7 +412,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             <>
               <div style={S.hero}>
                 <h1 style={S.h1}>Sei stato invitato all’evento</h1>
-                <div style={S.heroEvent}>{title}</div>
+                <div style={S.heroSub}>{day ? `🗓️ ${day}` : ""}</div>
               </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
@@ -543,17 +543,47 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               {step === "ready" ? (
                 <>
                   <div style={S.sectionTitle}>Dettagli invito</div>
+
                   <div style={S.partyBox}>
                     <div style={S.partyTitle}>{title}</div>
                     <div style={S.partyMeta}>
                       {day ? <div>🗓️ {day}</div> : <div>🗓️ (data non disponibile)</div>}
+                      <div style={S.partyHint}>
+                        Luogo e orario saranno visibili dopo la conferma e l’approvazione dell’organizzatore.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={S.divider} />
+
+                  <div style={S.ctaBoxStrong}>
+                    <div style={S.ctaTitleStrong}>Scarica PartyDispo 🔥</div>
+                    <div style={S.ctaTextStrong}>
+                      Con l’app ricevi:
+                      <ul style={S.ctaList}>
+                        <li>Notifiche quando vieni approvato</li>
+                        <li>Luogo e orario dell’evento (appena disponibili)</li>
+                        <li>Info e aggiornamenti in tempo reale</li>
+                      </ul>
+                    </div>
+
+                    <div style={{ height: 10 }} />
+
+                    <button style={S.primaryBtn} onClick={onOpenApp}>
+                      Apri nell’app
+                    </button>
+
+                    <div style={S.ctaSmall}>
+                      Non vuoi scaricarla? Puoi comunque rispondere qui sotto.
                     </div>
                   </div>
 
                   <div style={S.divider} />
 
                   <div style={S.sectionTitle}>Conferma partecipazione</div>
-                  <div style={S.muted}>Rispondi all’invito. La risposta verrà registrata e notificata all’organizzatore.</div>
+                  <div style={S.muted}>
+                    Rispondi all’invito. La risposta verrà registrata e notificata all’organizzatore.
+                  </div>
 
                   <div style={{ height: 10 }} />
 
@@ -572,21 +602,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                       onClick={() => onRespond("declined")}
                     >
                       {busy ? "Invio…" : "Non ci sono"}
-                    </button>
-                  </div>
-
-                  <div style={S.divider} />
-
-                  <div style={S.ctaBox}>
-                    <div style={S.ctaTitle}>Scarica PartyDispo 🔥</div>
-                    <div style={S.muted}>
-                      Se vuoi ricevere aggiornamenti su luogo e orario dell’evento (disponibili dopo la conferma/approvazione), scarica l’app.
-                    </div>
-
-                    <div style={{ height: 10 }} />
-
-                    <button style={S.primaryBtn} onClick={onOpenApp}>
-                      Apri nell’app
                     </button>
                   </div>
 
@@ -643,7 +658,12 @@ const S: Record<string, React.CSSProperties> = {
   },
   container: { width: "100%", maxWidth: 520, position: "relative", marginTop: 12 },
 
-  hero: { display: "grid", gap: 6, justifyItems: "start" },
+  hero: { display: "grid", gap: 8, justifyItems: "start" },
+  heroSub: {
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 14,
+    fontWeight: 700,
+  },
   heroEvent: {
     fontSize: 20,
     fontWeight: 900,
@@ -760,6 +780,12 @@ const S: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.70)",
     fontSize: 13,
   },
+  partyHint: {
+    marginTop: 6,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    lineHeight: "16px",
+  },
 
   ctaBox: {
     borderRadius: 18,
@@ -768,6 +794,37 @@ const S: Record<string, React.CSSProperties> = {
     padding: 14,
   },
   ctaTitle: { fontWeight: 900, marginBottom: 6 },
+
+  ctaBoxStrong: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
+    padding: 16,
+  },
+  ctaTitleStrong: {
+    fontWeight: 900,
+    fontSize: 18,
+    marginBottom: 6,
+    letterSpacing: -0.2,
+  },
+  ctaTextStrong: {
+    color: "rgba(255,255,255,0.70)",
+    fontSize: 14,
+    lineHeight: "18px",
+  },
+  ctaList: {
+    marginTop: 10,
+    marginBottom: 0,
+    paddingLeft: 18,
+    display: "grid",
+    gap: 6,
+  },
+  ctaSmall: {
+    marginTop: 10,
+    textAlign: "center",
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+  },
 
   confirm: {
     marginTop: 12,
