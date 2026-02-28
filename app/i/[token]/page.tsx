@@ -20,9 +20,18 @@ type Gender = "male" | "female";
 
 function fmtDay(dateIso: string | null) {
   if (!dateIso) return null;
-  const d = new Date(dateIso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("it-IT", {
+
+  // Supabase può ritornare timestamp con o senza timezone.
+  // Se manca la timezone, assumiamo Europe/Rome per coerenza.
+  const raw = String(dateIso).trim();
+  if (!raw) return null;
+
+  const hasTz = /[zZ]|[+-]\d{2}:?\d{2}$/.test(raw);
+  const parsed = hasTz ? new Date(raw) : new Date(raw.replace(" ", "T") + "+01:00");
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed.toLocaleDateString("it-IT", {
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -143,15 +152,18 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
         const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
         if (error) {
-          // Se per qualunque motivo non riusciamo, restiamo sul fallback.
+          console.error("[invite] get_invite_public preview error", error);
+          if (!cancelled) {
+            setErrorText("Non riesco a caricare i dettagli dell’evento. Riprova tra poco.");
+          }
           return;
         }
 
-        const row = Array.isArray(data) ? data[0] : data;
-        const t = row?.party_title;
-        const day = fmtDay(row?.party_date ?? null);
+        const row = Array.isArray(data) ? data[0] : (data as any);
+        if (!cancelled && row) {
+          const t = row.party_title;
+          const day = fmtDay(row.party_date ?? null);
 
-        if (!cancelled) {
           if (typeof t === "string" && t.trim()) setPreviewTitle(t.trim());
           if (day) setPreviewDay(day);
         }
@@ -180,7 +192,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
         if (error) throw error;
 
-        const row = Array.isArray(data) ? data[0] : data;
+        const row = Array.isArray(data) ? data[0] : (data as any);
         if (!row) {
           setInvite(null);
           setStep("error");
@@ -324,6 +336,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       if (upsertErr) throw upsertErr;
 
+      // Refresh preview fields immediately
+      try {
+        const { data: inv, error: invErr } = await supabase.rpc("get_invite_public", { p_token: token });
+        if (!invErr) {
+          const row = Array.isArray(inv) ? inv[0] : (inv as any);
+          if (row) {
+            if (typeof row.party_title === "string" && row.party_title.trim()) setPreviewTitle(row.party_title.trim());
+            const d = fmtDay(row.party_date ?? null);
+            if (d) setPreviewDay(d);
+          }
+        }
+      } catch {
+        // ignore
+      }
       setStep("ready");
     } catch (e) {
       console.error("[invite] verify otp error:", e);
