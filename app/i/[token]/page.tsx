@@ -19,7 +19,7 @@ type InviteRow = {
   } | null;
 };
 
-type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
+type Step = "loading" | "needAuth" | "verifyCode" | "needProfile" | "ready" | "done" | "error";
 
 function fmtDate(dateIso: string | null) {
   if (!dateIso) return null;
@@ -32,6 +32,10 @@ function fmtDate(dateIso: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function normalizePhone(p: string) {
+  return p.replace(/[^\d+]/g, "").trim();
 }
 
 export default function InvitePage({ params }: { params: { token: string } }) {
@@ -70,6 +74,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [profileComplete, setProfileComplete] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
@@ -99,7 +107,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (cancelled) return;
 
         setSessionUserId(uid);
-        setStep(uid ? "ready" : "needAuth");
+        setStep(uid ? "needProfile" : "needAuth");
       } catch (e) {
         console.error("[invite] auth bootstrap error", e);
         if (!cancelled) {
@@ -119,13 +127,68 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       const uid = session?.user?.id ?? null;
       setSessionUserId(uid);
       if (uid) {
-        setStep("ready");
+        setStep("needProfile");
       }
     });
     return () => {
       sub.data.subscription.unsubscribe();
     };
   }, []);
+
+  // Carica/valida profilo dopo login: prima di consentire RSVP richiediamo nome/cognome/telefono/email.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        if (step !== "needProfile") return;
+        if (!sessionUserId) return;
+
+        setBusy(true);
+        setErrorText(null);
+
+        // Proviamo a leggere un profilo esistente (se non esiste, l'utente lo compilerà)
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("first_name,last_name,phone,email")
+          .eq("id", sessionUserId)
+          .maybeSingle();
+
+        if (error) {
+          // Se la tabella/colonne non esistono o RLS blocca, non blocchiamo subito:
+          // mostriamo comunque il form e tenteremo il salvataggio.
+          console.warn("[invite] profile read warning", error);
+        }
+
+        if (!cancelled && data) {
+          if (typeof data.email === "string" && data.email.trim() && !email) setEmail(String(data.email).trim());
+          if (typeof data.first_name === "string" && data.first_name.trim()) setFirstName(String(data.first_name));
+          if (typeof data.last_name === "string" && data.last_name.trim()) setLastName(String(data.last_name));
+          if (typeof data.phone === "string" && data.phone.trim()) setPhone(String(data.phone));
+
+          const ok =
+            (typeof data.first_name === "string" && data.first_name.trim().length > 0) &&
+            (typeof data.last_name === "string" && data.last_name.trim().length > 0) &&
+            (typeof data.phone === "string" && data.phone.trim().length > 0) &&
+            (typeof data.email === "string" && data.email.trim().length > 0);
+
+          setProfileComplete(ok);
+          if (ok) setStep("ready");
+        } else if (!cancelled) {
+          setProfileComplete(false);
+        }
+      } catch (e) {
+        console.error("[invite] profile bootstrap error", e);
+        if (!cancelled) setProfileComplete(false);
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step, sessionUserId]);
 
   // Carica dettagli invito SOLO dopo login (step=ready)
   useEffect(() => {
@@ -134,6 +197,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     (async () => {
       try {
         if (step !== "ready") return;
+        if (!profileComplete) return;
         if (!sessionUserId) return;
         if (!token) return;
 
@@ -196,7 +260,58 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [step, sessionUserId, token]);
+  }, [step, sessionUserId, token, profileComplete]);
+  async function onSaveProfile() {
+    try {
+      setBusy(true);
+      setErrorText(null);
+
+      if (!sessionUserId) {
+        setErrorText("Sessione non valida. Riapri il link.");
+        return;
+      }
+
+      const e = email.trim().toLowerCase();
+      const fn = firstName.trim();
+      const ln = lastName.trim();
+      const ph = normalizePhone(phone);
+
+      if (!fn || !ln || !ph || !e) {
+        setErrorText("Compila nome, cognome, telefono ed email.");
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        setErrorText("Inserisci un’email valida.");
+        return;
+      }
+
+      // Salviamo su tabella profili (standard Supabase starter: public.profiles)
+      const { error } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            id: sessionUserId,
+            first_name: fn,
+            last_name: ln,
+            phone: ph,
+            email: e,
+            updated_at: new Date().toISOString(),
+          } as any,
+          { onConflict: "id" }
+        );
+
+      if (error) throw error;
+
+      setProfileComplete(true);
+      setStep("ready");
+    } catch (e) {
+      console.error("[invite] save profile error", e);
+      setErrorText("Non sono riuscito a salvare i tuoi dati. Riprova.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const title = invite?.parties?.title ?? "Invito PartyDispo";
   const location = invite?.parties?.location ?? "—";
@@ -308,13 +423,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       <div style={S.bg} />
 
       <div style={S.container}>
-        <div style={S.brandRow}>
-          <div style={S.logo}>P</div>
-          <div>
-            <div style={S.brand}>PartyDispo</div>
-            <div style={S.subBrand}>Invito</div>
-          </div>
-        </div>
 
         <div style={S.card}>
           {step === "loading" ? (
@@ -333,8 +441,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             </>
           ) : (
             <>
-              {/* FLOW B: prima accedi, poi mostriamo i dettagli */}
-              <h1 style={S.h1}>Sei invitato 🎉</h1>
+              <div style={S.hero}>
+                <div style={S.heroLogo}>P</div>
+                <h1 style={S.h1}>Sei invitato 🎉</h1>
+                <div style={S.heroSub}>PartyDispo</div>
+              </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10 }}>{errorText}</p> : null}
 
@@ -343,9 +454,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               {/* AUTH */}
               {step === "needAuth" ? (
                 <>
-                  <div style={S.sectionTitle}>Prima accedi</div>
+                  <div style={S.sectionTitle}>Accedi</div>
                   <div style={S.muted}>
-                    Per confermare la partecipazione devi accedere. Se è la prima volta, creeremo automaticamente il tuo account.
+                    Ti invieremo un codice. Se hai già un account, accederai. Se è la prima volta, lo creeremo automaticamente.
                   </div>
 
                   <div style={{ height: 10 }} />
@@ -364,6 +475,72 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
                     {busy ? "Invio…" : "Invia codice"}
+                  </button>
+
+                  <div style={{ height: 10 }} />
+
+                  <button style={S.secondaryBtn} onClick={onOpenApp}>
+                    Apri nell’app
+                  </button>
+                </>
+              ) : null}
+              {step === "needProfile" ? (
+                <>
+                  <div style={S.sectionTitle}>Completa i tuoi dati</div>
+                  <div style={S.muted}>
+                    Inserisci nome, cognome e telefono per permettere all’organizzatore di riconoscerti e gestire la festa.
+                  </div>
+
+                  <div style={{ height: 10 }} />
+
+                  <input
+                    style={S.input}
+                    placeholder="Nome"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    autoCapitalize="words"
+                    autoCorrect="off"
+                  />
+
+                  <div style={{ height: 10 }} />
+
+                  <input
+                    style={S.input}
+                    placeholder="Cognome"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    autoCapitalize="words"
+                    autoCorrect="off"
+                  />
+
+                  <div style={{ height: 10 }} />
+
+                  <input
+                    style={S.input}
+                    placeholder="Telefono"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    inputMode="tel"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+
+                  <div style={{ height: 10 }} />
+
+                  <input
+                    style={S.input}
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+
+                  <div style={{ height: 10 }} />
+
+                  <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSaveProfile}>
+                    {busy ? "Salvataggio…" : "Continua"}
                   </button>
 
                   <div style={{ height: 10 }} />
@@ -507,10 +684,10 @@ const S: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
   container: { width: "100%", maxWidth: 520, position: "relative", marginTop: 12 },
-  brandRow: { display: "flex", alignItems: "center", gap: 12, marginBottom: 14 },
-  logo: {
-    width: 42,
-    height: 42,
+  hero: { display: "grid", gap: 6, justifyItems: "start" },
+  heroLogo: {
+    width: 40,
+    height: 40,
     borderRadius: 14,
     display: "flex",
     alignItems: "center",
@@ -519,8 +696,7 @@ const S: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.12)",
     fontWeight: 900,
   },
-  brand: { fontWeight: 900, letterSpacing: 0.2 },
-  subBrand: { fontSize: 12, color: "rgba(255,255,255,0.62)" },
+  heroSub: { fontSize: 12, color: "rgba(255,255,255,0.62)", fontWeight: 700 },
 
   card: {
     borderRadius: 22,
