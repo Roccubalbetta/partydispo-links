@@ -168,10 +168,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
-  const onOpenApp = () => {
-    if (!token) return;
-    window.location.href = `partydispo://i/${encodeURIComponent(token)}`;
-  };
 
   const onGetApp = () => {
     const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
@@ -187,9 +183,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       return;
     }
 
-    // Non ancora sugli store: tentiamo comunque il deeplink (se per caso è installata)
-    // e mostriamo un messaggio coerente.
-    onOpenApp();
     setErrorText("L’app non è ancora disponibile sugli store. Riprova più avanti.");
   };
 
@@ -577,9 +570,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 <button style={S.primaryBtn} onClick={onGetApp}>
                   Scarica l’app
                 </button>
-                <button style={S.secondaryBtn} onClick={onOpenApp}>
-                  Apri l’app (se già installata)
-                </button>
               </div>
             </>
           ) : (
@@ -736,9 +726,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                       <button style={S.primaryBtn} onClick={onGetApp}>
                         Scarica l’app
                       </button>
-                      <button style={S.secondaryBtn} onClick={onOpenApp}>
-                        Apri l’app (se già installata)
-                      </button>
                     </div>
 
                     <div style={S.ctaSmall}>
@@ -805,9 +792,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.btnCol}>
                     <button style={S.primaryBtn} onClick={onGetApp}>
                       Scarica l’app
-                    </button>
-                    <button style={S.secondaryBtn} onClick={onOpenApp}>
-                      Apri l’app (se già installata)
                     </button>
                   </div>
                 </div>
