@@ -109,11 +109,27 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [busy, setBusy] = useState(false);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
 
-  // RSVP result (match DB statuses used by the mobile app)
   const [resultStatus, setResultStatus] = useState<"yes" | "no" | null>(null);
-
-  // Nasconde subito i bottoni dopo click
   const [pendingChoice, setPendingChoice] = useState<"yes" | "no" | null>(null);
+
+  const rsvpStorageKey = useMemo(() => (token ? `pd_invite_rsvp_${token}` : ""), [token]);
+
+  function loadSavedRsvp(): "yes" | "no" | null {
+    if (typeof window === "undefined") return null;
+    if (!rsvpStorageKey) return null;
+    const v = window.localStorage.getItem(rsvpStorageKey);
+    return v === "yes" || v === "no" ? v : null;
+  }
+
+  function saveRsvp(v: "yes" | "no") {
+    if (typeof window === "undefined") return;
+    if (!rsvpStorageKey) return;
+    try {
+      window.localStorage.setItem(rsvpStorageKey, v);
+    } catch {
+      // ignore
+    }
+  }
 
   function asMsg(e: any): string {
     if (!e) return "";
@@ -167,6 +183,18 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
+
+  // Restore an already-sent RSVP so buttons never re-appear on refresh.
+  useEffect(() => {
+    if (step !== "ready") return;
+    const saved = loadSavedRsvp();
+    if (saved) {
+      setResultStatus(saved);
+      setPendingChoice(null);
+      setStep("done");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, rsvpStorageKey]);
 
 
   const onGetApp = () => {
@@ -511,7 +539,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     } catch (e) {
       console.error("[invite] verify otp unexpected error:", e);
       setErrorText(
-        "Codice non valido o scaduto. Controlla di aver inserito le 6 cifre ESATTE e che sia l'ULTIMO codice ricevuto, poi riprova (o premi Reinvia codice)."
+        "Codice non valido o scaduto. Controlla di aver inserito le 8 cifre ESATTE e che sia l'ULTIMO codice ricevuto, poi riprova (o premi Reinvia codice)."
       );
     } finally {
       setBusy(false);
@@ -535,6 +563,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       if (error) throw error;
 
       if (data?.ok) {
+        saveRsvp(next);
         setResultStatus(next);
         setStep("done");
       } else {
@@ -742,8 +771,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={{ height: 12 }} />
 
-                  {pendingChoice ? (
-                    <div style={{ ...S.muted, textAlign: "center" }}>Sto inviando la tua risposta all’organizzatore…</div>
+                  {pendingChoice || resultStatus ? (
+                    <div style={{ ...S.muted, textAlign: "center" }}>
+                      {pendingChoice ? "Sto inviando la tua risposta all’organizzatore…" : "Risposta già inviata."}
+                    </div>
                   ) : (
                     <div style={S.row}>
                       <button
