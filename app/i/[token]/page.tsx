@@ -109,11 +109,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [busy, setBusy] = useState(false);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
 
-  // RSVP result
-  const [resultStatus, setResultStatus] = useState<"accepted" | "declined" | null>(null);
+  // RSVP result (match DB statuses used by the mobile app)
+  const [resultStatus, setResultStatus] = useState<"yes" | "no" | null>(null);
 
   // Nasconde subito i bottoni dopo click
-  const [pendingChoice, setPendingChoice] = useState<"accepted" | "declined" | null>(null);
+  const [pendingChoice, setPendingChoice] = useState<"yes" | "no" | null>(null);
 
   function asMsg(e: any): string {
     if (!e) return "";
@@ -518,7 +518,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     }
   }
 
-  async function onRespond(next: "accepted" | "declined") {
+  async function onRespond(next: "yes" | "no") {
     try {
       // spariscono subito
       setPendingChoice(next);
@@ -749,7 +749,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                       <button
                         style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }}
                         disabled={busy}
-                        onClick={() => onRespond("accepted")}
+                        onClick={() => onRespond("yes")}
                       >
                         {busy ? "Invio…" : "Ci sono"}
                       </button>
@@ -757,7 +757,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                       <button
                         style={{ ...S.secondaryBtn, opacity: busy ? 0.7 : 1 }}
                         disabled={busy}
-                        onClick={() => onRespond("declined")}
+                        onClick={() => onRespond("no")}
                       >
                         {busy ? "Invio…" : "Non ci sono"}
                       </button>
@@ -778,11 +778,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               {step === "done" ? (
                 <div style={S.confirm}>
                   <div style={S.confirmTitle}>
-                    {resultStatus === "accepted" ? "✅ Presenza confermata!" : "✅ Risposta inviata!"}
+                    {resultStatus === "yes" ? "✅ Presenza confermata!" : "✅ Risposta inviata!"}
                   </div>
 
                   <div style={{ ...S.muted, textAlign: "center" }}>
-                    {resultStatus === "accepted"
+                    {resultStatus === "yes"
                       ? "Hai confermato che parteciperai. La tua risposta è stata inviata all’organizzatore."
                       : "Hai indicato che non parteciperai. La tua risposta è stata inviata all’organizzatore."}
                   </div>
