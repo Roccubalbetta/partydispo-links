@@ -15,7 +15,7 @@ type InviteRow = {
 };
 
 type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
-type Sex = "M" | "F";
+type Sex = "male" | "female";
 
 const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
 const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
@@ -98,7 +98,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [sex, setSex] = useState<Sex>("M");
+  const [sex, setSex] = useState<Sex>("male");
 
   // OTP
   const [otp, setOtp] = useState("");
@@ -652,15 +652,15 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.genderRow}>
                     <button
                       type="button"
-                      style={sex === "M" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setSex("M")}
+                      style={sex === "male" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setSex("male")}
                     >
                       Uomo
                     </button>
                     <button
                       type="button"
-                      style={sex === "F" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setSex("F")}
+                      style={sex === "female" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setSex("female")}
                     >
                       Donna
                     </button>
