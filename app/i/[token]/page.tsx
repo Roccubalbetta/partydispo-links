@@ -307,6 +307,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         setErrorText(null);
 
         const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
+        console.log("[invite] respond result:", { data, error });
         if (error) throw error;
 
         const row = Array.isArray(data) ? data[0] : (data as any);
@@ -338,6 +339,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         }
       }
     })();
+
+    
 
     return () => {
       cancelled = true;
