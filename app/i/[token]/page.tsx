@@ -42,7 +42,13 @@ function fmtDay(dateIso: string | null) {
 }
 
 function normalizePhone(p: string) {
-  return p.replace(/[^\d+]/g, "").trim();
+  const cleaned = p.replace(/[^\d+]/g, "").trim();
+
+  // Normalize to a safe length. E.164 allows up to 15 digits (+ optional leading '+').
+  if (cleaned.startsWith("+")) {
+    return "+" + cleaned.slice(1).replace(/\D/g, "").slice(0, 15);
+  }
+  return cleaned.replace(/\D/g, "").slice(0, 15);
 }
 
 function isValidEmail(e: string) {
@@ -50,8 +56,8 @@ function isValidEmail(e: string) {
 }
 
 function sanitizeOtp(code: string) {
-  // Keep only digits (users often paste with spaces)
-  return code.replace(/\D/g, "").trim();
+  // Keep only digits (users often paste with spaces) and cap to 6 digits.
+  return code.replace(/\D/g, "").trim().slice(0, 6);
 }
 
 export default function InvitePage({ params }: { params: { token: string } }) {
@@ -155,6 +161,12 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const title = invite?.party_title ?? previewTitle;
   const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
+
+  // UX: keep state changes visible on mobile
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
 
   const onOpenApp = () => {
     if (!token) return;
@@ -652,12 +664,22 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={{ height: 12 }} />
 
                   <input
-                    style={S.input}
-                    placeholder="Codice OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    inputMode="numeric"
-                  />
+  style={S.input}
+  placeholder="Codice OTP (6 cifre)"
+  value={otp}
+  onChange={(e) => {
+    const next = sanitizeOtp(e.target.value);
+    setOtp(next);
+  }}
+  inputMode="numeric"
+  autoComplete="one-time-code"
+  maxLength={6}
+/>
+
+<div style={{ height: 8 }} />
+<div style={{ ...S.muted, textAlign: "center" }}>
+  Inserisci esattamente <b>6 cifre</b> e assicurati di usare <b>l’ultimo</b> codice ricevuto.
+</div>
 
                   <div style={{ height: 12 }} />
 
