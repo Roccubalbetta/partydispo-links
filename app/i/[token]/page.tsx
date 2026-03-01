@@ -56,8 +56,8 @@ function isValidEmail(e: string) {
 }
 
 function sanitizeOtp(code: string) {
-  // Keep only digits (users often paste with spaces) and cap to 6 digits.
-  return code.replace(/\D/g, "").trim().slice(0, 6);
+  // Keep only digits (users often paste with spaces) and cap to 8 digits.
+  return code.replace(/\D/g, "").trim().slice(0, 8);
 }
 
 export default function InvitePage({ params }: { params: { token: string } }) {
@@ -398,20 +398,28 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         return;
       }
 
-      // Supabase Email OTP è un codice a 6 cifre.
+      // Nel tuo caso l'OTP arriva a 8 cifre.
       // Se l'utente incolla con spazi o trattini li rimuoviamo con sanitizeOtp.
-      if (!code || code.length !== 6) {
-        setErrorText("Inserisci le 6 cifre del codice OTP.");
+      if (!code || code.length !== 8) {
+        setErrorText("Inserisci le 8 cifre del codice OTP.");
         return;
       }
 
-      // Verifica OTP (Email OTP): la documentazione Supabase richiede `type: "email"`
-      // e `token` uguale al codice a 6 cifre ricevuto via email.
-      const verify = await supabase.auth.verifyOtp({
+      // Verifica OTP: proviamo prima `type: "email"` (OTP classico),
+      // poi fallback a `type: "magiclink"` (alcune configurazioni inviano un codice a 8 cifre con questo tipo).
+      let verify = await supabase.auth.verifyOtp({
         email: em,
         token: code,
         type: "email",
       });
+
+      if (verify.error) {
+        verify = await supabase.auth.verifyOtp({
+          email: em,
+          token: code,
+          type: "magiclink",
+        });
+      }
 
       if (verify.error) {
         console.error("[invite] verifyOtp failed (OTP invalid/expired):", verify.error);
@@ -663,9 +671,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={{ height: 12 }} />
 
+
                   <input
   style={S.input}
-  placeholder="Codice OTP (6 cifre)"
+  placeholder="Codice OTP (8 cifre)"
   value={otp}
   onChange={(e) => {
     const next = sanitizeOtp(e.target.value);
@@ -673,14 +682,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   }}
   inputMode="numeric"
   autoComplete="one-time-code"
-  maxLength={6}
+  maxLength={8}
 />
 
 <div style={{ height: 8 }} />
 <div style={{ ...S.muted, textAlign: "center" }}>
-  Inserisci esattamente <b>6 cifre</b> e assicurati di usare <b>l’ultimo</b> codice ricevuto.
+  Inserisci esattamente <b>8 cifre</b> e assicurati di usare <b>l’ultimo</b> codice ricevuto.
 </div>
-
                   <div style={{ height: 12 }} />
 
                   <div style={S.btnCol}>
