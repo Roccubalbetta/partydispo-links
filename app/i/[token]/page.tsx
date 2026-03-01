@@ -1,7 +1,7 @@
 // app/i/[token]/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -15,7 +15,7 @@ type InviteRow = {
 };
 
 type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
-type Gender = "male" | "female";
+type Sex = "M" | "F";
 
 const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
 const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
@@ -47,6 +47,11 @@ function normalizePhone(p: string) {
 
 function isValidEmail(e: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim().toLowerCase());
+}
+
+function sanitizeOtp(code: string) {
+  // Keep only digits (users often paste with spaces)
+  return code.replace(/\D/g, "").trim();
 }
 
 export default function InvitePage({ params }: { params: { token: string } }) {
@@ -87,10 +92,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [gender, setGender] = useState<Gender>("male");
+  const [sex, setSex] = useState<Sex>("M");
 
   // OTP
   const [otp, setOtp] = useState("");
+  // Anti-spam OTP resend cooldown (Supabase returns 429 if you spam requests)
+  const [otpCooldownSec, setOtpCooldownSec] = useState(0);
+  const otpCooldownTimerRef = useRef<number | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
@@ -100,6 +108,50 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   // Nasconde subito i bottoni dopo click
   const [pendingChoice, setPendingChoice] = useState<"accepted" | "declined" | null>(null);
+
+  function asMsg(e: any): string {
+    if (!e) return "";
+    if (typeof e === "string") return e;
+    if (e?.message && typeof e.message === "string") return e.message;
+    try {
+      return JSON.stringify(e);
+    } catch {
+      return String(e);
+    }
+  }
+
+  async function safeClearBrokenSession() {
+    // On web it is common to have a stale refresh token in localStorage.
+    // When that happens Supabase may throw "Invalid Refresh Token" and subsequent calls behave oddly.
+    // We proactively sign out locally to reset the client state.
+    try {
+      const { error } = await supabase.auth.getSession();
+      const msg = asMsg(error);
+      if (error && /refresh token/i.test(msg)) {
+        await supabase.auth.signOut();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  function startOtpCooldown(seconds: number) {
+    if (otpCooldownTimerRef.current) {
+      window.clearInterval(otpCooldownTimerRef.current);
+      otpCooldownTimerRef.current = null;
+    }
+    setOtpCooldownSec(seconds);
+    otpCooldownTimerRef.current = window.setInterval(() => {
+      setOtpCooldownSec((s) => {
+        const next = Math.max(0, s - 1);
+        if (next === 0 && otpCooldownTimerRef.current) {
+          window.clearInterval(otpCooldownTimerRef.current);
+          otpCooldownTimerRef.current = null;
+        }
+        return next;
+      });
+    }, 1000);
+  }
 
   const title = invite?.party_title ?? previewTitle;
   const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
@@ -137,6 +189,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       try {
         setStep("loading");
         setErrorText(null);
+        await safeClearBrokenSession();
 
         if (!token) {
           setStep("error");
@@ -165,6 +218,16 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       cancelled = true;
     };
   }, [token]);
+
+  // Cleanup timer
+  useEffect(() => {
+    return () => {
+      if (otpCooldownTimerRef.current) {
+        window.clearInterval(otpCooldownTimerRef.current);
+        otpCooldownTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Preview (titolo + giorno) via RPC, anche senza login
   useEffect(() => {
@@ -250,6 +313,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   async function onSendCode() {
     try {
+      if (otpCooldownSec > 0) {
+        setErrorText(`Per sicurezza puoi richiedere un nuovo codice tra ${otpCooldownSec}s.`);
+        return;
+      }
       setBusy(true);
       setErrorText(null);
 
@@ -271,20 +338,34 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         return;
       }
 
-      // OTP email: se user esiste -> login, se non esiste -> create user
+      // Email OTP: usiamo SOLO il codice (niente magic link) per evitare mismatch tra redirect URL e flussi.
+      // Nota: `emailRedirectTo` non è necessario per l’OTP e può generare confusione se il dominio non coincide.
       const { error } = await supabase.auth.signInWithOtp({
         email: em,
         options: {
-          emailRedirectTo: `https://www.partydispo.app/i/${encodeURIComponent(token)}`,
+          shouldCreateUser: true,
         },
       });
 
       if (error) throw error;
 
+      // Supabase rate limit: avoid spamming requests
+      startOtpCooldown(30);
+
+      setOtp("");
       setStep("verifyCode");
     } catch (e) {
       console.error("[invite] send otp error:", e);
-      setErrorText("Non sono riuscito a inviare il codice. Riprova.");
+      const msg = asMsg(e);
+      if (/429|too many requests/i.test(msg) || /only request this after/i.test(msg)) {
+        // Extract seconds if present
+        const m = msg.match(/after\s+(\d+)\s+seconds/i);
+        const sec = m ? parseInt(m[1], 10) : 30;
+        if (Number.isFinite(sec) && sec > 0) startOtpCooldown(sec);
+        setErrorText(m ? `Per sicurezza puoi richiedere un nuovo codice tra ${sec}s.` : "Hai richiesto troppi codici. Riprova tra qualche secondo.");
+      } else {
+        setErrorText("Non sono riuscito a inviare il codice. Riprova.");
+      }
     } finally {
       setBusy(false);
     }
@@ -294,56 +375,120 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     try {
       setBusy(true);
       setErrorText(null);
+      await safeClearBrokenSession();
+      // Nota: safeClearBrokenSession può fare signOut se trova un refresh token rotto; va bene prima della verifyOtp.
 
       const em = email.trim().toLowerCase();
-      const code = otp.trim();
+      const code = sanitizeOtp(otp);
 
-      if (!code) {
-        setErrorText("Inserisci il codice OTP.");
-        return;
-      }
       if (!isValidEmail(em)) {
         setErrorText("Email non valida.");
         return;
       }
 
-      const { data, error } = await supabase.auth.verifyOtp({
+      // Supabase Email OTP è un codice a 6 cifre.
+      // Se l'utente incolla con spazi o trattini li rimuoviamo con sanitizeOtp.
+      if (!code || code.length !== 6) {
+        setErrorText("Inserisci le 6 cifre del codice OTP.");
+        return;
+      }
+
+      // Verifica OTP (Email OTP): la documentazione Supabase richiede `type: "email"`
+      // e `token` uguale al codice a 6 cifre ricevuto via email.
+      const verify = await supabase.auth.verifyOtp({
         email: em,
         token: code,
         type: "email",
       });
 
-      if (error) throw error;
+      if (verify.error) {
+        console.error("[invite] verifyOtp failed (OTP invalid/expired):", verify.error);
+        const msg = asMsg(verify.error);
+        if (/expired|scadut/i.test(msg)) {
+          setErrorText("Codice scaduto. Premi 'Reinvia codice' e usa l’ULTIMO codice ricevuto.");
+        } else {
+          setErrorText("Codice non valido o scaduto. Assicurati di usare l’ULTIMO codice ricevuto.");
+        }
+        return;
+      }
 
-      const uid = data.user?.id ?? null;
+      // In alcune combinazioni (client/web) il user può non essere presente nel payload,
+      // ma la session viene comunque creata. Quindi recuperiamo sempre la sessione.
+      const { data: sessData, error: sessErr } = await supabase.auth.getSession();
+      if (sessErr) {
+        console.error("[invite] getSession after verify error:", sessErr);
+        setErrorText("Accesso riuscito ma non riesco a inizializzare la sessione. Riprova.");
+        return;
+      }
+
+      const uid = sessData.session?.user?.id ?? verify.data.user?.id ?? null;
       if (!uid) {
         setErrorText("Accesso non riuscito. Riprova.");
         return;
       }
 
       setSessionUserId(uid);
+      // Defensive: ensure the session is really in place
+      try {
+        await supabase.auth.getUser();
+      } catch {
+        // ignore
+      }
 
-      // Upsert profilo: se esiste -> update, se non esiste -> insert
+      // Upsert profilo: NON deve bloccare il flusso OTP.
+      // Se qui fallisce (RLS / schema cache / colonna mancante), l’utente è comunque autenticato
+      // e può continuare a rispondere all’invito.
       const fn = firstName.trim();
       const ln = lastName.trim();
       const ph = normalizePhone(phone);
 
+      if (!fn || !ln || !ph) {
+        setErrorText("Compila nome, cognome e telefono.");
+        return;
+      }
+
+      const profilePayload: any = {
+        id: uid,
+        first_name: fn,
+        last_name: ln,
+        phone: ph,
+        email: em,
+        // NB: la colonna corretta nel tuo DB è `sex` (NON `gender`).
+        sex,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error: upsertErr } = await supabase
         .from("profiles")
-        .upsert(
-          {
-            id: uid,
-            first_name: fn,
-            last_name: ln,
-            phone: ph,
-            email: em,
-            gender,
-            updated_at: new Date().toISOString(),
-          } as any,
-          { onConflict: "id" }
-        );
+        .upsert(profilePayload, { onConflict: "id" });
 
-      if (upsertErr) throw upsertErr;
+      if (upsertErr) {
+        // IMPORTANT: non trattare questo come errore OTP.
+        console.error("[invite] profile upsert failed (OTP OK):", {
+          code: (upsertErr as any)?.code,
+          message: (upsertErr as any)?.message,
+          details: (upsertErr as any)?.details,
+          hint: (upsertErr as any)?.hint,
+          payloadKeys: Object.keys(profilePayload),
+        });
+
+        // Caso tipico: schema cache di PostgREST non aggiornata / colonna non trovata.
+        // Permettiamo di proseguire ma mostriamo un messaggio chiaro.
+        const msg = asMsg(upsertErr);
+        if (/could not find the 'gender' column/i.test(msg)) {
+          setErrorText(
+            "OTP verificato correttamente ✅. Tuttavia il sito sta provando a scrivere un campo non più presente (gender). Hai già corretto il codice per usare `sex`, quindi ora serve solo una nuova build/deploy del sito (e svuotare la cache del browser) per caricare la versione aggiornata. Nel frattempo puoi continuare."
+          );
+        } else if (/could not find the 'sex' column/i.test(msg) || /PGRST204/i.test(msg)) {
+          setErrorText(
+            "OTP verificato correttamente ✅. Non riesco a salvare il profilo (colonna `sex` non trovata o schema cache non aggiornata). Puoi continuare, ma per sistemare definitivamente verifica che la tabella `profiles` abbia la colonna `sex` e poi ricarica la schema cache di PostgREST."
+          );
+        } else {
+          setErrorText(
+            "OTP verificato correttamente ✅. Non riesco a salvare il profilo (probabile RLS). Puoi continuare, ma verifica le RLS sulla tabella `profiles` (permesso di upsert per l’utente autenticato)."
+          );
+        }
+      }
 
       // Reset RSVP UI state
       setPendingChoice(null);
@@ -351,8 +496,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       setStep("ready");
     } catch (e) {
-      console.error("[invite] verify otp error:", e);
-      setErrorText("Codice non valido o scaduto. Riprova.");
+      console.error("[invite] verify otp unexpected error:", e);
+      setErrorText(
+        "Codice non valido o scaduto. Controlla di aver inserito le 6 cifre ESATTE e che sia l'ULTIMO codice ricevuto, poi riprova (o premi Reinvia codice)."
+      );
     } finally {
       setBusy(false);
     }
@@ -466,15 +613,15 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.genderRow}>
                     <button
                       type="button"
-                      style={gender === "male" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setGender("male")}
+                      style={sex === "M" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setSex("M")}
                     >
                       Uomo
                     </button>
                     <button
                       type="button"
-                      style={gender === "female" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setGender("female")}
+                      style={sex === "F" ? S.genderBtnActive : S.genderBtn}
+                      onClick={() => setSex("F")}
                     >
                       Donna
                     </button>
@@ -484,7 +631,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={S.btnCol}>
                     <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
-                      {busy ? "Invio…" : "Invia codice OTP"}
+                      {busy ? "Invio…" : otpCooldownSec > 0 ? `Riprova tra ${otpCooldownSec}s` : "Invia codice OTP"}
                     </button>
 
                     <button style={S.secondaryBtn} onClick={onGetApp}>
@@ -519,8 +666,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                       {busy ? "Verifica…" : "Verifica e continua"}
                     </button>
 
-                    <button style={S.linkBtn} disabled={busy} onClick={onSendCode}>
-                      Reinvia codice
+                    <button style={S.linkBtn} disabled={busy || otpCooldownSec > 0} onClick={onSendCode}>
+                      {otpCooldownSec > 0 ? `Reinvia tra ${otpCooldownSec}s` : "Reinvia codice"}
                     </button>
                   </div>
                 </>
