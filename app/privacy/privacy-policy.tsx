@@ -3,18 +3,50 @@ import React from "react";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 style={{ fontSize: 18, marginTop: 22, marginBottom: 10, fontWeight: 800 }}>
+    <h2
+      style={{
+        fontSize: 22,
+        marginTop: 28,
+        marginBottom: 10,
+        fontWeight: 900,
+        color: "#0E0F12", // ✅ forza contrasto (evita titoli "sbiaditi")
+        opacity: 1,
+        letterSpacing: "-0.2px",
+      }}
+    >
       {children}
     </h2>
   );
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p style={{ margin: "10px 0", lineHeight: 1.6, color: "rgba(0,0,0,0.78)" }}>{children}</p>;
+  return (
+    <p
+      style={{
+        margin: "10px 0",
+        lineHeight: 1.7,
+        color: "rgba(14,15,18,0.82)",
+        fontSize: 16,
+      }}
+    >
+      {children}
+    </p>
+  );
 }
 
 function Li({ children }: { children: React.ReactNode }) {
-  return <li style={{ margin: "6px 0", lineHeight: 1.6, color: "rgba(0,0,0,0.78)" }}>{children}</li>;
+  return (
+    <li
+      style={{
+        margin: "6px 0",
+        lineHeight: 1.7,
+        color: "rgba(14,15,18,0.82)",
+        fontSize: 16,
+      }}
+    >
+      {children}
+    </li>
+  );
 }
 
 export default function PrivacyPolicy() {
@@ -28,7 +60,7 @@ export default function PrivacyPolicy() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#F6F8FF",
+        background: "#FFFFFF",
         padding: "32px 16px",
       }}
     >
@@ -36,7 +68,7 @@ export default function PrivacyPolicy() {
         style={{
           maxWidth: 860,
           margin: "0 auto",
-          background: "rgba(255,255,255,0.85)",
+          background: "#FFFFFF",
           border: "1px solid rgba(14,15,18,0.08)",
           borderRadius: 18,
           padding: 22,
