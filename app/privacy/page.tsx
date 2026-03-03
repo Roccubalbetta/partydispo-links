@@ -101,7 +101,7 @@ export default function PrivacyPolicy() {
         <SectionTitle>Contatti</SectionTitle>
         <P>
           Per domande o richieste riguardanti questa privacy policy, contattaci
-          all'indirizzo email support@partydispo.com.
+          all'indirizzo email partydispo.app@gmail.com.
         </P>
       </div>
     </main>
