@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.riccardo.partydispo",
+      "package_name": "com.partydispo.app",
       "sha256_cert_fingerprints": [
-        "F8:1D:02:37:0C:22:43:C5:F3:93:26:D3:DC:4D:79:E8:F9:FD:A8:77:B8:E6:0E:63:7E:1A:98:74:9C:C7:D1:F4"
+        "C1:3A:58:68:06:9A:4D:AB:26:80:08:72:27:95:08:A8:59:B5:69:24:66:C0:16:DB:9B:2E:D4:0A:77:A3:A9:01"
       ]
     }
   }
