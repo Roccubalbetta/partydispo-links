@@ -790,7 +790,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 <>
                   <div style={S.sectionTitleCenter}>Inserisci il codice</div>
                   <div style={{ ...S.muted, textAlign: "center" }}>
-                    Ti abbiamo inviato un codice OTP a <b>{email.trim().toLowerCase()}</b>. Inseriscilo qui sotto.
+                    Ti abbiamo inviato un codice OTP a <b>{email.trim().toLowerCase()}</b>. 
                   </div>
 
                   <div style={{ height: 8 }} />
@@ -844,7 +844,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <div style={S.partyMeta}>
                       {day ? <div>🗓️ {day}</div> : <div>🗓️ (data non disponibile)</div>}
                       <div style={S.partyHint}>
-                        Luogo e orario saranno visibili solo dentro l’app (dopo conferma/approvazione).
+                        Luogo e orario saranno visibili solo dentro l’app.
                       </div>
                     </div>
                   </div>
@@ -872,7 +872,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     </div>
 
                     <div style={S.ctaSmall}>
-                      Non vuoi scaricarla? Puoi comunque rispondere qui sotto (non potrai modificare la scelta).
+                      Non vuoi scaricarla? Puoi comunque rispondere qui sotto 
                     </div>
                   </div>
 
@@ -882,12 +882,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={{ ...S.muted, textAlign: "center" }}>
                     {requiresPreferencesBeforeJoin
                       ? "Per questa festa devi prima indicare le preferenze drink. Solo dopo potrai inviare la tua partecipazione all’organizzatore."
-                      : "La tua risposta verrà inviata all’organizzatore. Dopo l’invio non potrai cambiarla."}
+                      : "La tua risposta verrà inviata all’organizzatore. Se confermato dall'organizzatore, riceverai una mail di conferma"}
                   </div>
 
-                  <div style={{ ...S.smallMuted, marginTop: 8 }}>
-                    debug → step: {step} | wantsToJoin: {String(wantsToJoin)} | requiresPrefs: {String(requiresPreferencesBeforeJoin)} | mode: {String(invite?.party_mode ?? "null")} | showPrefs: {String(invite?.show_drink_preferences ?? "null")}
-                  </div>
 
                   <div style={{ height: 12 }} />
 
