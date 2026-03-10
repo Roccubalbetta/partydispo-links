@@ -17,7 +17,7 @@ type InviteRow = {
 };
 
 type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
-type Sex = "male" | "female";
+type Sex = "male" | "female" | null;
 
 type DrinkPrefs = {
   rum: boolean;
@@ -144,7 +144,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [sex, setSex] = useState<Sex>("male");
+  const [sex, setSex] = useState<Sex>(null);
 
   const [otp, setOtp] = useState("");
   const [otpCooldownSec, setOtpCooldownSec] = useState(0);
@@ -238,12 +238,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   useEffect(() => {
     if (step !== "ready") return;
-    const saved = loadSavedRsvp();
-    if (saved) {
-      setResultStatus(saved);
-      setPendingChoice(null);
-      setStep("done");
-    }
+    setResultStatus(null);
+    setPendingChoice(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, rsvpStorageKey]);
 
@@ -652,7 +648,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       if (data?.ok) {
         saveRsvp(next);
         setResultStatus(next);
-        setStep("done");
       } else {
         setPendingChoice(null);
         setErrorText("Non sono riuscito a registrare la risposta. Riprova.");
@@ -690,7 +685,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       if (data?.ok) {
         saveRsvp("yes");
         setResultStatus("yes");
-        setStep("done");
+        setWantsToJoin(false);
       } else {
         setPendingChoice(null);
         setErrorText("Non sono riuscito a inviare la tua partecipazione. Riprova.");
@@ -764,12 +759,17 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={{ height: 12 }} />
 
-                  <div style={S.genderRow}>
-                    <button type="button" style={sex === "male" ? S.genderBtnActive : S.genderBtn} onClick={() => setSex("male")}>
-                      Uomo
-                    </button>
-                    <button type="button" style={sex === "female" ? S.genderBtnActive : S.genderBtn} onClick={() => setSex("female")}>
-                      Donna
+                  <div style={S.genderCol}>
+                    <div style={S.genderRow}>
+                      <button type="button" style={sex === "male" ? S.genderBtnActive : S.genderBtn} onClick={() => setSex("male")}>
+                        Uomo
+                      </button>
+                      <button type="button" style={sex === "female" ? S.genderBtnActive : S.genderBtn} onClick={() => setSex("female")}>
+                        Donna
+                      </button>
+                    </div>
+                    <button type="button" style={sex === null ? S.genderBtnActive : S.genderBtn} onClick={() => setSex(null)}>
+                      Preferisco non indicarlo
                     </button>
                   </div>
 
@@ -795,18 +795,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={{ height: 8 }} />
 
-                  <button
-                    type="button"
-                    style={S.linkBtn}
-                    disabled={busy}
-                    onClick={() => {
-                      setStep("needAuth");
-                      setOtp("");
-                      setErrorText(null);
-                    }}
-                  >
-                    Cambia email
-                  </button>
+                  <div style={{ display: "grid", justifyItems: "center" }}>
+                    <button
+                      type="button"
+                      style={S.linkBtnCentered}
+                      disabled={busy}
+                      onClick={() => {
+                        setStep("needAuth");
+                        setOtp("");
+                        setErrorText(null);
+                      }}
+                    >
+                      Cambia email
+                    </button>
+                  </div>
 
                   <div style={{ height: 12 }} />
                   <input
@@ -1038,19 +1040,32 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               {step === "done" ? (
                 <div style={S.confirm}>
                   <div style={S.confirmTitle}>
-                    {resultStatus === "yes" ? "✅ Presenza confermata!" : "✅ Risposta inviata!"}
+                    {resultStatus === "yes" ? "✅ Presenza registrata" : "✅ Risposta registrata"}
                   </div>
 
                   <div style={{ ...S.muted, textAlign: "center" }}>
                     {resultStatus === "yes"
-                      ? "Hai confermato che parteciperai. La tua risposta è stata inviata all’organizzatore."
-                      : "Hai indicato che non parteciperai. La tua risposta è stata inviata all’organizzatore."}
+                      ? "Hai indicato che parteciperai. Puoi comunque cambiare scelta finché riapri questo link."
+                      : "Hai indicato che non parteciperai. Puoi comunque cambiare scelta finché riapri questo link."}
                   </div>
 
                   <div style={{ height: 12 }} />
 
-                  <div style={S.btnCol}>
-                    <button style={S.primaryBtn} onClick={onGetApp}>
+                  <div style={S.row}>
+                    <button
+                      style={S.primaryBtn}
+                      onClick={() => {
+                        setStep("ready");
+                        setPendingChoice(null);
+                        setResultStatus(null);
+                        setWantsToJoin(false);
+                        setErrorText(null);
+                      }}
+                    >
+                      Cambia scelta
+                    </button>
+
+                    <button style={S.secondaryBtn} onClick={onGetApp}>
                       Scarica l’app
                     </button>
                   </div>
@@ -1112,6 +1127,7 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 800,
   },
   genderRow: { display: "flex", gap: 10, justifyContent: "center" },
+  genderCol: { display: "grid", gap: 10 },
   genderBtn: {
     height: 44,
     borderRadius: 14,
@@ -1171,6 +1187,17 @@ const S: Record<string, React.CSSProperties> = {
   linkBtn: {
     width: "100%",
     maxWidth: 320,
+    height: 40,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.92)",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  linkBtnCentered: {
+    width: "100%",
+    maxWidth: 220,
     height: 40,
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.12)",
