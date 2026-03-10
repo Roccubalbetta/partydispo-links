@@ -12,10 +12,36 @@ type InviteRow = {
   expires_at: string | null;
   party_title: string | null;
   party_date: string | null;
+  party_mode?: "BRING_YOUR_OWN" | "PAY_AND_DRINK" | string | null;
+  show_drink_preferences?: boolean | null;
 };
 
 type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
 type Sex = "male" | "female";
+
+type DrinkPrefs = {
+  rum: boolean;
+  gin: boolean;
+  vodka: boolean;
+  tequila: boolean;
+  beer: boolean;
+  cola: boolean;
+  tonic: boolean;
+  lemonade: boolean;
+  water: boolean;
+};
+
+const DEFAULT_PREFS: DrinkPrefs = {
+  rum: false,
+  gin: false,
+  vodka: false,
+  tequila: false,
+  beer: false,
+  cola: false,
+  tonic: false,
+  lemonade: false,
+  water: false,
+};
 
 const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
 const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
@@ -23,8 +49,6 @@ const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL ||
 function fmtDay(dateIso: string | null) {
   if (!dateIso) return null;
 
-  // Supabase può ritornare timestamp con o senza timezone.
-  // Se manca la timezone, assumiamo Europe/Rome per coerenza.
   const raw = String(dateIso).trim();
   if (!raw) return null;
 
@@ -44,7 +68,6 @@ function fmtDay(dateIso: string | null) {
 function normalizePhone(p: string) {
   const cleaned = p.replace(/[^\d+]/g, "").trim();
 
-  // Normalize to a safe length. E.164 allows up to 15 digits (+ optional leading '+').
   if (cleaned.startsWith("+")) {
     return "+" + cleaned.slice(1).replace(/\D/g, "").slice(0, 15);
   }
@@ -56,8 +79,32 @@ function isValidEmail(e: string) {
 }
 
 function sanitizeOtp(code: string) {
-  // Keep only digits (users often paste with spaces) and cap to 8 digits.
   return code.replace(/\D/g, "").trim().slice(0, 8);
+}
+
+function asMsg(e: any): string {
+  if (!e) return "";
+  if (typeof e === "string") return e;
+  if (e?.message && typeof e.message === "string") return e.message;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
+
+function hasAlcoholSelection(prefs: DrinkPrefs) {
+  return !!(prefs.rum || prefs.gin || prefs.vodka || prefs.tequila || prefs.beer);
+}
+
+function isAlcoholPreferenceKey(key: keyof DrinkPrefs) {
+  return key === "rum" || key === "gin" || key === "vodka" || key === "tequila" || key === "beer";
+}
+
+function hasCompletedDrinkPrefs(currentPrefs: DrinkPrefs, currentIntoxLevel: number) {
+  const alcoholSelected = hasAlcoholSelection(currentPrefs);
+  const safeIntoxLevel = currentIntoxLevel <= 0 ? 0 : currentIntoxLevel >= 2 ? 2 : 1;
+  return safeIntoxLevel === 0 ? !alcoholSelected : alcoholSelected;
 }
 
 export default function InvitePage({ params }: { params: { token: string } }) {
@@ -93,16 +140,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [step, setStep] = useState<Step>("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  // Dati utente (sempre richiesti)
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [sex, setSex] = useState<Sex>("male");
 
-  // OTP
   const [otp, setOtp] = useState("");
-  // Anti-spam OTP resend cooldown (Supabase returns 429 if you spam requests)
   const [otpCooldownSec, setOtpCooldownSec] = useState(0);
   const otpCooldownTimerRef = useRef<number | null>(null);
 
@@ -111,6 +155,12 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const [resultStatus, setResultStatus] = useState<"yes" | "no" | null>(null);
   const [pendingChoice, setPendingChoice] = useState<"yes" | "no" | null>(null);
+
+  const [prefs, setPrefs] = useState<DrinkPrefs>(DEFAULT_PREFS);
+  const [intoxLevel, setIntoxLevel] = useState<number>(0);
+  const [prefsTouched, setPrefsTouched] = useState(false);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [wantsToJoin, setWantsToJoin] = useState(false);
 
   const rsvpStorageKey = useMemo(() => (token ? `pd_invite_rsvp_${token}` : ""), [token]);
 
@@ -131,21 +181,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     }
   }
 
-  function asMsg(e: any): string {
-    if (!e) return "";
-    if (typeof e === "string") return e;
-    if (e?.message && typeof e.message === "string") return e.message;
-    try {
-      return JSON.stringify(e);
-    } catch {
-      return String(e);
-    }
-  }
-
   async function safeClearBrokenSession() {
-    // On web it is common to have a stale refresh token in localStorage.
-    // When that happens Supabase may throw "Invalid Refresh Token" and subsequent calls behave oddly.
-    // We proactively sign out locally to reset the client state.
     try {
       const { error } = await supabase.auth.getSession();
       const msg = asMsg(error);
@@ -178,13 +214,28 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const title = invite?.party_title ?? previewTitle;
   const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
 
-  // UX: keep state changes visible on mobile
+  const requiresPreferencesBeforeJoin = useMemo(() => {
+    const partyModeRaw = String(invite?.party_mode ?? "").toUpperCase().trim();
+    return partyModeRaw === "PAY_AND_DRINK" && invite?.show_drink_preferences === true;
+  }, [invite]);
+
+  useEffect(() => {
+    console.log("[invite-web] preferences gate", {
+      step,
+      wantsToJoin,
+      requiresPreferencesBeforeJoin,
+      invitePartyMode: invite?.party_mode ?? null,
+      inviteShowDrinkPreferences: invite?.show_drink_preferences ?? null,
+      invitePartyId: invite?.party_id ?? null,
+      sessionUserId,
+    });
+  }, [step, wantsToJoin, requiresPreferencesBeforeJoin, invite, sessionUserId]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [step]);
+  }, [step, wantsToJoin]);
 
-  // Restore an already-sent RSVP so buttons never re-appear on refresh.
   useEffect(() => {
     if (step !== "ready") return;
     const saved = loadSavedRsvp();
@@ -195,7 +246,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, rsvpStorageKey]);
-
 
   const onGetApp = () => {
     const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
@@ -214,7 +264,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     setErrorText("L’app non è ancora disponibile sugli store. Riprova più avanti.");
   };
 
-  // Bootstrap: token + session
   useEffect(() => {
     let cancelled = false;
 
@@ -235,15 +284,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (cancelled) return;
 
         setSessionUserId(uid);
-
-        // Anche se c'è sessione, il flusso che vuoi è: form dati -> OTP.
-        // Quindi restiamo su needAuth finché non si completa l’OTP.
         setStep("needAuth");
       } catch (e) {
         console.error("[invite] bootstrap error", e);
-        if (!cancelled) {
-          setStep("needAuth");
-        }
+        if (!cancelled) setStep("needAuth");
       }
     })();
 
@@ -252,7 +296,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [token]);
 
-  // Cleanup timer
   useEffect(() => {
     return () => {
       if (otpCooldownTimerRef.current) {
@@ -262,7 +305,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, []);
 
-  // Preview (titolo + giorno) via RPC, anche senza login
   useEffect(() => {
     let cancelled = false;
 
@@ -295,22 +337,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [token]);
 
-  // Dopo login (OTP completato) carichiamo dettagli invito (sempre via RPC public)
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        if (step !== "ready") return;
-        if (!token) return;
+        if (step !== "ready" || !token) return;
 
         setErrorText(null);
 
         const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
-        console.log("[invite] respond result:", { data, error });
         if (error) throw error;
 
         const row = Array.isArray(data) ? data[0] : (data as any);
+        console.log("[invite-web] get_invite_public row", row);
         if (!row) {
           setInvite(null);
           setStep("error");
@@ -318,7 +358,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           return;
         }
 
-        // scadenza (se la usi)
         if (row.expires_at) {
           const exp = new Date(row.expires_at).getTime();
           if (Number.isFinite(exp) && exp < Date.now()) {
@@ -329,8 +368,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           }
         }
 
-        if (cancelled) return;
-        setInvite(row as any);
+        if (!cancelled) setInvite(row as InviteRow);
       } catch (e) {
         console.error("[invite] post-login load error", e);
         if (!cancelled) {
@@ -340,12 +378,55 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       }
     })();
 
-    
-
     return () => {
       cancelled = true;
     };
   }, [step, token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        if (step !== "ready" || !sessionUserId || !invite?.party_id || !requiresPreferencesBeforeJoin) return;
+
+        const { data, error } = await supabase
+          .from("party_drink_preferences")
+          .select("rum, gin, vodka, tequila, beer, cola, tonic, lemonade, water, intox_level")
+          .eq("party_id", invite.party_id)
+          .eq("user_id", sessionUserId)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[invite] load web drink prefs error", error);
+          return;
+        }
+        if (!data || cancelled) return;
+
+        setPrefs({
+          rum: !!data.rum,
+          gin: !!data.gin,
+          vodka: !!data.vodka,
+          tequila: !!data.tequila,
+          beer: !!data.beer,
+          cola: !!data.cola,
+          tonic: !!data.tonic,
+          lemonade: !!data.lemonade,
+          water: !!data.water,
+        });
+
+        const raw = typeof data.intox_level === "number" ? data.intox_level : 0;
+        setIntoxLevel(raw <= 0 ? 0 : raw >= 2 ? 2 : 1);
+        setPrefsTouched(true);
+      } catch (e) {
+        console.error("[invite] load web drink prefs unexpected error", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step, sessionUserId, invite?.party_id, requiresPreferencesBeforeJoin]);
 
   async function onSendCode() {
     try {
@@ -374,8 +455,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         return;
       }
 
-      // Email OTP: usiamo SOLO il codice (niente magic link) per evitare mismatch tra redirect URL e flussi.
-      // Nota: `emailRedirectTo` non è necessario per l’OTP e può generare confusione se il dominio non coincide.
       const { error } = await supabase.auth.signInWithOtp({
         email: em,
         options: {
@@ -385,16 +464,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       if (error) throw error;
 
-      // Supabase rate limit: avoid spamming requests
       startOtpCooldown(30);
-
       setOtp("");
       setStep("verifyCode");
     } catch (e) {
       console.error("[invite] send otp error:", e);
       const msg = asMsg(e);
       if (/429|too many requests/i.test(msg) || /only request this after/i.test(msg)) {
-        // Extract seconds if present
         const m = msg.match(/after\s+(\d+)\s+seconds/i);
         const sec = m ? parseInt(m[1], 10) : 30;
         if (Number.isFinite(sec) && sec > 0) startOtpCooldown(sec);
@@ -412,7 +488,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       setBusy(true);
       setErrorText(null);
       await safeClearBrokenSession();
-      // Nota: safeClearBrokenSession può fare signOut se trova un refresh token rotto; va bene prima della verifyOtp.
 
       const em = email.trim().toLowerCase();
       const code = sanitizeOtp(otp);
@@ -421,16 +496,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         setErrorText("Email non valida.");
         return;
       }
-
-      // Nel tuo caso l'OTP arriva a 8 cifre.
-      // Se l'utente incolla con spazi o trattini li rimuoviamo con sanitizeOtp.
       if (!code || code.length !== 8) {
         setErrorText("Inserisci le 8 cifre del codice OTP.");
         return;
       }
 
-      // Verifica OTP: proviamo prima `type: "email"` (OTP classico),
-      // poi fallback a `type: "magiclink"` (alcune configurazioni inviano un codice a 8 cifre con questo tipo).
       let verify = await supabase.auth.verifyOtp({
         email: em,
         token: code,
@@ -446,7 +516,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       }
 
       if (verify.error) {
-        console.error("[invite] verifyOtp failed (OTP invalid/expired):", verify.error);
         const msg = asMsg(verify.error);
         if (/expired|scadut/i.test(msg)) {
           setErrorText("Codice scaduto. Premi 'Reinvia codice' e usa l’ULTIMO codice ricevuto.");
@@ -456,11 +525,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         return;
       }
 
-      // In alcune combinazioni (client/web) il user può non essere presente nel payload,
-      // ma la session viene comunque creata. Quindi recuperiamo sempre la sessione.
       const { data: sessData, error: sessErr } = await supabase.auth.getSession();
       if (sessErr) {
-        console.error("[invite] getSession after verify error:", sessErr);
         setErrorText("Accesso riuscito ma non riesco a inizializzare la sessione. Riprova.");
         return;
       }
@@ -472,16 +538,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       }
 
       setSessionUserId(uid);
-      // Defensive: ensure the session is really in place
-      try {
-        await supabase.auth.getUser();
-      } catch {
-        // ignore
-      }
 
-      // Upsert profilo: NON deve bloccare il flusso OTP.
-      // Se qui fallisce (RLS / schema cache / colonna mancante), l’utente è comunque autenticato
-      // e può continuare a rispondere all’invito.
       const fn = firstName.trim();
       const ln = lastName.trim();
       const ph = normalizePhone(phone);
@@ -497,67 +554,94 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         last_name: ln,
         phone: ph,
         email: em,
-        // NB: la colonna corretta nel tuo DB è `sex` (NON `gender`).
         sex,
         updated_at: new Date().toISOString(),
       };
 
-      const { error: upsertErr } = await supabase
-        .from("profiles")
-        .upsert(profilePayload, { onConflict: "id" });
+      const { error: upsertErr } = await supabase.from("profiles").upsert(profilePayload, { onConflict: "id" });
 
       if (upsertErr) {
-        // IMPORTANT: non trattare questo come errore OTP.
-        console.error("[invite] profile upsert failed (OTP OK):", {
-          code: (upsertErr as any)?.code,
-          message: (upsertErr as any)?.message,
-          details: (upsertErr as any)?.details,
-          hint: (upsertErr as any)?.hint,
-          payloadKeys: Object.keys(profilePayload),
-        });
-
-        // Caso tipico: schema cache di PostgREST non aggiornata / colonna non trovata.
-        // Permettiamo di proseguire ma mostriamo un messaggio chiaro.
-        const msg = asMsg(upsertErr);
-        if (/could not find the 'gender' column/i.test(msg)) {
-          setErrorText(
-            "OTP verificato correttamente ✅. Tuttavia il sito sta provando a scrivere un campo non più presente (gender). Hai già corretto il codice per usare `sex`, quindi ora serve solo una nuova build/deploy del sito (e svuotare la cache del browser) per caricare la versione aggiornata. Nel frattempo puoi continuare."
-          );
-        } else if (/could not find the 'sex' column/i.test(msg) || /PGRST204/i.test(msg)) {
-          setErrorText(
-            "OTP verificato correttamente ✅. Non riesco a salvare il profilo (colonna `sex` non trovata o schema cache non aggiornata). Puoi continuare, ma per sistemare definitivamente verifica che la tabella `profiles` abbia la colonna `sex` e poi ricarica la schema cache di PostgREST."
-          );
-        } else {
-          setErrorText(
-            "OTP verificato correttamente ✅. Non riesco a salvare il profilo (probabile RLS). Puoi continuare, ma verifica le RLS sulla tabella `profiles` (permesso di upsert per l’utente autenticato)."
-          );
-        }
+        console.error("[invite] profile upsert failed (OTP OK):", upsertErr);
       }
 
-      // Reset RSVP UI state
       setPendingChoice(null);
       setResultStatus(null);
-
+      setWantsToJoin(false);
       setStep("ready");
     } catch (e) {
       console.error("[invite] verify otp unexpected error:", e);
-      setErrorText(
-        "Codice non valido o scaduto. Controlla di aver inserito le 8 cifre ESATTE e che sia l'ULTIMO codice ricevuto, poi riprova (o premi Reinvia codice)."
-      );
+      setErrorText("Codice non valido o scaduto. Controlla di aver inserito le 8 cifre esatte e che sia l'ultimo codice ricevuto.");
     } finally {
       setBusy(false);
     }
   }
 
+  function setPref<K extends keyof DrinkPrefs>(key: K, value: boolean) {
+    setPrefs((prev) => {
+      const next = { ...prev, [key]: value };
+      setPrefsTouched(true);
+
+      const alcoholSelected = hasAlcoholSelection(next);
+      const selectedAlcoholKey = isAlcoholPreferenceKey(key);
+
+      if (selectedAlcoholKey && value && intoxLevel === 0) {
+        setIntoxLevel(1);
+      }
+
+      if (!alcoholSelected && intoxLevel > 0) {
+        setIntoxLevel(0);
+      }
+
+      return next;
+    });
+  }
+
+  async function saveDrinkPreferences() {
+    if (!invite?.party_id || !sessionUserId) {
+      throw new Error("Sessione non valida. Riprova.");
+    }
+
+    const safeIntoxLevel = intoxLevel <= 0 ? 0 : intoxLevel >= 2 ? 2 : 1;
+
+    const payload = {
+      party_id: invite.party_id,
+      user_id: sessionUserId,
+      ...prefs,
+      intox_level: safeIntoxLevel,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("party_drink_preferences")
+      .upsert(payload, { onConflict: "party_id,user_id" });
+
+    if (error) throw error;
+  }
+
   async function onRespond(next: "yes" | "no") {
     try {
-      // spariscono subito
-      setPendingChoice(next);
+      console.log("[invite-web] onRespond:start", {
+        next,
+        wantsToJoin,
+        requiresPreferencesBeforeJoin,
+        invitePartyMode: invite?.party_mode ?? null,
+        inviteShowDrinkPreferences: invite?.show_drink_preferences ?? null,
+        invitePartyId: invite?.party_id ?? null,
+        sessionUserId,
+      });
+      if (next === "yes" && requiresPreferencesBeforeJoin) {
+        console.log("[invite-web] onRespond:preferences-required -> opening prefs UI");
+        setPendingChoice(null);
+        setResultStatus(null);
+        setWantsToJoin(true);
+        setErrorText(null);
+        return;
+      }
 
+      setPendingChoice(next);
       setBusy(true);
       setErrorText(null);
 
-      // RPC autenticata: valida token e aggiorna party_participants
       const { data, error } = await supabase.rpc("respond_party_invite_auth", {
         p_token: token,
         p_status: next,
@@ -582,10 +666,56 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     }
   }
 
+  async function onSavePrefsAndRespond() {
+    try {
+      setPrefsSaving(true);
+      setErrorText(null);
+      setPendingChoice("yes");
+
+      if (!hasCompletedDrinkPrefs(prefs, intoxLevel)) {
+        setPendingChoice(null);
+        setErrorText("Per continuare devi mantenere coerenti le preferenze: se scegli “Non bevo” non puoi selezionare alcolici; se scegli di bere devi selezionare almeno una bevanda alcolica.");
+        return;
+      }
+
+      await saveDrinkPreferences();
+
+      const { data, error } = await supabase.rpc("respond_party_invite_auth", {
+        p_token: token,
+        p_status: "yes",
+      });
+
+      if (error) throw error;
+
+      if (data?.ok) {
+        saveRsvp("yes");
+        setResultStatus("yes");
+        setStep("done");
+      } else {
+        setPendingChoice(null);
+        setErrorText("Non sono riuscito a inviare la tua partecipazione. Riprova.");
+      }
+    } catch (e) {
+      console.error("[invite] save prefs and respond error:", e);
+      setPendingChoice(null);
+      setErrorText("Non sono riuscito a salvare le preferenze o a inviare la risposta. Riprova.");
+    } finally {
+      setPrefsSaving(false);
+      setBusy(false);
+    }
+  }
+
+  console.log("[invite-web] render state", {
+    step,
+    wantsToJoin,
+    requiresPreferencesBeforeJoin,
+    showPrefsCard: wantsToJoin && requiresPreferencesBeforeJoin,
+    invitePartyMode: invite?.party_mode ?? null,
+    inviteShowDrinkPreferences: invite?.show_drink_preferences ?? null,
+  });
   return (
     <main style={S.page}>
       <div style={S.bg} />
-
       <div style={S.container}>
         <div style={S.card}>
           {step === "loading" ? (
@@ -616,7 +746,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
               <div style={S.divider} />
 
-              {/* STEP 1: DATI + INVIO OTP */}
               {step === "needAuth" ? (
                 <>
                   <div style={S.sectionTitleCenter}>Accedi</div>
@@ -625,46 +754,21 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   </div>
 
                   <div style={{ height: 12 }} />
-
                   <input style={S.input} placeholder="Nome" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                   <div style={{ height: 10 }} />
                   <input style={S.input} placeholder="Cognome" value={lastName} onChange={(e) => setLastName(e.target.value)} />
                   <div style={{ height: 10 }} />
-                  <input
-                    style={S.input}
-                    placeholder="Telefono"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    inputMode="tel"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                  />
+                  <input style={S.input} placeholder="Telefono" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
                   <div style={{ height: 10 }} />
-                  <input
-                    style={S.input}
-                    placeholder="Mail"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    inputMode="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                  />
+                  <input style={S.input} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" />
 
                   <div style={{ height: 12 }} />
 
                   <div style={S.genderRow}>
-                    <button
-                      type="button"
-                      style={sex === "male" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setSex("male")}
-                    >
+                    <button type="button" style={sex === "male" ? S.genderBtnActive : S.genderBtn} onClick={() => setSex("male")}>
                       Uomo
                     </button>
-                    <button
-                      type="button"
-                      style={sex === "female" ? S.genderBtnActive : S.genderBtn}
-                      onClick={() => setSex("female")}
-                    >
+                    <button type="button" style={sex === "female" ? S.genderBtnActive : S.genderBtn} onClick={() => setSex("female")}>
                       Donna
                     </button>
                   </div>
@@ -675,7 +779,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
                       {busy ? "Invio…" : otpCooldownSec > 0 ? `Riprova tra ${otpCooldownSec}s` : "Invia codice OTP"}
                     </button>
-
                     <button style={S.secondaryBtn} onClick={onGetApp}>
                       Scarica l’app
                     </button>
@@ -683,41 +786,50 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 </>
               ) : null}
 
-              {/* STEP 2: VERIFICA OTP */}
               {step === "verifyCode" ? (
                 <>
                   <div style={S.sectionTitleCenter}>Inserisci il codice</div>
                   <div style={{ ...S.muted, textAlign: "center" }}>
-                    Ti abbiamo inviato un codice OTP via email. Inseriscilo qui sotto.
+                    Ti abbiamo inviato un codice OTP a <b>{email.trim().toLowerCase()}</b>. Inseriscilo qui sotto.
                   </div>
 
+                  <div style={{ height: 8 }} />
+
+                  <button
+                    type="button"
+                    style={S.linkBtn}
+                    disabled={busy}
+                    onClick={() => {
+                      setStep("needAuth");
+                      setOtp("");
+                      setErrorText(null);
+                    }}
+                  >
+                    Cambia email
+                  </button>
+
                   <div style={{ height: 12 }} />
-
-
                   <input
-  style={S.input}
-  placeholder="Codice OTP (8 cifre)"
-  value={otp}
-  onChange={(e) => {
-    const next = sanitizeOtp(e.target.value);
-    setOtp(next);
-  }}
-  inputMode="numeric"
-  autoComplete="one-time-code"
-  maxLength={8}
-/>
+                    style={S.input}
+                    placeholder="Codice OTP (8 cifre)"
+                    value={otp}
+                    onChange={(e) => setOtp(sanitizeOtp(e.target.value))}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={8}
+                  />
 
-<div style={{ height: 8 }} />
-<div style={{ ...S.muted, textAlign: "center" }}>
-  Inserisci esattamente <b>8 cifre</b> e assicurati di usare <b>l’ultimo</b> codice ricevuto.
-</div>
+                  <div style={{ height: 8 }} />
+                  <div style={{ ...S.muted, textAlign: "center" }}>
+                    Inserisci esattamente <b>8 cifre</b> e assicurati di usare <b>l’ultimo</b> codice ricevuto.
+                  </div>
+
                   <div style={{ height: 12 }} />
 
                   <div style={S.btnCol}>
                     <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onVerifyCode}>
                       {busy ? "Verifica…" : "Verifica e continua"}
                     </button>
-
                     <button style={S.linkBtn} disabled={busy || otpCooldownSec > 0} onClick={onSendCode}>
                       {otpCooldownSec > 0 ? `Reinvia tra ${otpCooldownSec}s` : "Reinvia codice"}
                     </button>
@@ -725,7 +837,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 </>
               ) : null}
 
-              {/* STEP 3: POST OTP - EVENTO + CTA APP + RSVP */}
               {step === "ready" ? (
                 <>
                   <div style={S.partyBox}>
@@ -769,12 +880,131 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={S.sectionTitleCenter}>Conferma partecipazione</div>
                   <div style={{ ...S.muted, textAlign: "center" }}>
-                    La tua risposta verrà inviata all’organizzatore. Dopo l’invio non potrai cambiarla.
+                    {requiresPreferencesBeforeJoin
+                      ? "Per questa festa devi prima indicare le preferenze drink. Solo dopo potrai inviare la tua partecipazione all’organizzatore."
+                      : "La tua risposta verrà inviata all’organizzatore. Dopo l’invio non potrai cambiarla."}
+                  </div>
+
+                  <div style={{ ...S.smallMuted, marginTop: 8 }}>
+                    debug → step: {step} | wantsToJoin: {String(wantsToJoin)} | requiresPrefs: {String(requiresPreferencesBeforeJoin)} | mode: {String(invite?.party_mode ?? "null")} | showPrefs: {String(invite?.show_drink_preferences ?? "null")}
                   </div>
 
                   <div style={{ height: 12 }} />
 
-                  {pendingChoice || resultStatus ? (
+                  {wantsToJoin && requiresPreferencesBeforeJoin ? (
+                    <div style={S.prefsCard}>
+                      <div style={S.prefsTitle}>Preferenze drink</div>
+                      <div style={S.prefsHint}>
+                        Se scegli “Non bevo” non puoi selezionare alcolici. Se scegli di bere devi selezionare almeno una bevanda alcolica.
+                      </div>
+
+                      <div style={S.prefsSectionTitle}>Alcolici</div>
+                      <div style={S.checkboxGrid}>
+                        {([
+                          ["rum", "Rum"],
+                          ["gin", "Gin"],
+                          ["vodka", "Vodka"],
+                          ["tequila", "Tequila"],
+                          ["beer", "Birra"],
+                        ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => (
+                          <label key={key} style={S.checkboxItem}>
+                            <input type="checkbox" checked={prefs[key]} onChange={(e) => setPref(key, e.target.checked)} />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <div style={S.prefsSectionTitle}>Analcolici</div>
+                      <div style={S.checkboxGrid}>
+                        {([
+                          ["cola", "Cola"],
+                          ["tonic", "Tonica"],
+                          ["lemonade", "Limonata"],
+                          ["water", "Acqua"],
+                        ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => (
+                          <label key={key} style={S.checkboxItem}>
+                            <input type="checkbox" checked={prefs[key]} onChange={(e) => setPref(key, e.target.checked)} />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <div style={S.prefsSectionTitle}>Quanto vuoi bere?</div>
+                      <div style={S.levelRow}>
+                        {[0, 1, 2].map((n) => {
+                          const active = intoxLevel === n;
+                          const label = n === 0 ? "Non bevo" : n === 1 ? "Bevo" : "Mi ubriaco";
+                          return (
+                            <button
+                              key={n}
+                              type="button"
+                              style={active ? S.levelBtnActive : S.levelBtn}
+                              onClick={() => {
+                                setPrefsTouched(true);
+
+                                if (n === 0) {
+                                  setPrefs((prev) => ({
+                                    ...prev,
+                                    rum: false,
+                                    gin: false,
+                                    vodka: false,
+                                    tequila: false,
+                                    beer: false,
+                                  }));
+                                  setIntoxLevel(0);
+                                  return;
+                                }
+
+                                if (!hasAlcoholSelection(prefs)) {
+                                  setErrorText("Se scegli di bere, devi prima selezionare almeno una preferenza alcolica.");
+                                  return;
+                                }
+
+                                setIntoxLevel(n);
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {!prefsTouched ? (
+                        <div style={S.smallMuted}>
+                          Prima scegli cosa vuoi bere oppure indica che non bevi, poi invia la partecipazione.
+                        </div>
+                      ) : !hasCompletedDrinkPrefs(prefs, intoxLevel) ? (
+                        <div style={S.smallMuted}>
+                          Le preferenze non sono complete: se scegli di bere devi indicare almeno un alcolico; se non bevi non puoi lasciare alcolici selezionati.
+                        </div>
+                      ) : (
+                        <div style={S.smallMuted}>Preferenze complete. Ora puoi inviare la tua partecipazione.</div>
+                      )}
+
+                      <div style={S.row}>
+                        <button
+                          style={{ ...S.primaryBtn, opacity: prefsSaving ? 0.7 : 1 }}
+                          disabled={prefsSaving}
+                          onClick={onSavePrefsAndRespond}
+                        >
+                          {prefsSaving ? "Invio…" : "Salva preferenze e invia"}
+                        </button>
+
+                        <button
+                          style={S.secondaryBtn}
+                          disabled={prefsSaving}
+                          onClick={() => {
+                            setPendingChoice(null);
+                            setResultStatus(null);
+                            setWantsToJoin(false);
+                            setErrorText(null);
+                          }}
+                        >
+                          Torna indietro
+                        </button>
+                      </div>
+                    </div>
+                  ) : pendingChoice || resultStatus ? (
                     <div style={{ ...S.muted, textAlign: "center" }}>
                       {pendingChoice ? "Sto inviando la tua risposta all’organizzatore…" : "Risposta già inviata."}
                     </div>
@@ -808,7 +1038,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 </>
               ) : null}
 
-              {/* STEP 4: DONE */}
               {step === "done" ? (
                 <div style={S.confirm}>
                   <div style={S.confirmTitle}>
@@ -860,7 +1089,6 @@ const S: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
   container: { width: "100%", maxWidth: 520, position: "relative", marginTop: 12 },
-
   card: {
     borderRadius: 22,
     border: "1px solid rgba(255,255,255,0.10)",
@@ -868,18 +1096,13 @@ const S: Record<string, React.CSSProperties> = {
     boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
     padding: 18,
   },
-
   hero: { display: "grid", gap: 8, justifyItems: "center", textAlign: "center" },
   heroSub: { color: "rgba(255,255,255,0.62)", fontSize: 14, fontWeight: 800 },
   heroEvent: { fontSize: 18, fontWeight: 950, color: "rgba(255,255,255,0.88)", letterSpacing: -0.2 },
-
   h1: { margin: 0, fontSize: 28, fontWeight: 950, letterSpacing: -0.3, textAlign: "center" },
   muted: { color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: "18px" },
-
   divider: { height: 1, background: "rgba(255,255,255,0.10)", margin: "16px 0" },
-
   sectionTitleCenter: { fontWeight: 950, marginBottom: 6, textAlign: "center" },
-
   input: {
     width: "100%",
     height: 46,
@@ -891,7 +1114,6 @@ const S: Record<string, React.CSSProperties> = {
     outline: "none",
     fontWeight: 800,
   },
-
   genderRow: { display: "flex", gap: 10, justifyContent: "center" },
   genderBtn: {
     height: 44,
@@ -913,21 +1135,18 @@ const S: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     flex: 1,
   },
-
   btnCol: {
     display: "grid",
     justifyItems: "center",
     gap: 10,
     marginTop: 6,
   },
-
   row: {
     display: "grid",
     gap: 10,
     marginTop: 10,
     justifyItems: "center",
   },
-
   primaryBtn: {
     height: 46,
     borderRadius: 14,
@@ -963,7 +1182,6 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   partyBox: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.10)",
@@ -985,7 +1203,6 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 12,
     lineHeight: "16px",
   },
-
   ctaBoxStrong: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.14)",
@@ -997,7 +1214,6 @@ const S: Record<string, React.CSSProperties> = {
   ctaTextStrong: { color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: "18px" },
   ctaList: { marginTop: 10, marginBottom: 0, paddingLeft: 18, display: "grid", gap: 6, textAlign: "left" },
   ctaSmall: { marginTop: 10, textAlign: "center", color: "rgba(255,255,255,0.55)", fontSize: 12 },
-
   confirm: {
     marginTop: 12,
     borderRadius: 18,
@@ -1010,10 +1226,8 @@ const S: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
   confirmTitle: { fontWeight: 950, fontSize: 16 },
-
   debug: { marginTop: 14, textAlign: "center", color: "rgba(255,255,255,0.45)", fontSize: 12 },
   code: { background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 10 },
-
   center: { display: "grid", justifyItems: "center", gap: 10, padding: "18px 0" },
   spinner: {
     width: 18,
@@ -1022,5 +1236,61 @@ const S: Record<string, React.CSSProperties> = {
     border: "2px solid rgba(255,255,255,0.18)",
     borderTopColor: "rgba(255,255,255,0.85)",
     animation: "spin 0.9s linear infinite",
+  },
+  prefsCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.05)",
+    padding: 14,
+    display: "grid",
+    gap: 12,
+  },
+  prefsTitle: { fontSize: 18, fontWeight: 950, textAlign: "center" },
+  prefsHint: { color: "rgba(255,255,255,0.62)", fontSize: 13, lineHeight: "18px", textAlign: "center" },
+  prefsSectionTitle: { fontWeight: 900, fontSize: 13, color: "rgba(255,255,255,0.82)" },
+  checkboxGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+  },
+  checkboxItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.16)",
+    padding: "10px 12px",
+    fontWeight: 800,
+    color: "rgba(255,255,255,0.88)",
+  },
+  levelRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 10,
+  },
+  levelBtn: {
+    height: 42,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.85)",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  levelBtnActive: {
+    height: 42,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(255,255,255,0.92)",
+    color: "#111",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  smallMuted: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    lineHeight: "16px",
+    textAlign: "center",
   },
 };

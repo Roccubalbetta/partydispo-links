@@ -27,7 +27,8 @@ export default function DataDeletionPage() {
         </h1>
 
         <p style={{ margin: "12px 0", lineHeight: 1.6, color: "rgba(0,0,0,0.78)" }}>
-          Per richiedere la cancellazione del tuo account PartyDispo e dei dati associati, invia una email a{" "}
+          Puoi cancellare il tuo account PartyDispo direttamente dall'app, nella pagina <strong>Profilo</strong>, utilizzando l'opzione <strong>"Elimina account"</strong>.
+          In alternativa, puoi richiedere la cancellazione del tuo account e dei dati associati inviando una email a{" "}
           <a href={`mailto:${contactEmail}`} style={{ color: "#2A7FFF", fontWeight: 800 }}>
             {contactEmail}
           </a>.
