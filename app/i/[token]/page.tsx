@@ -884,7 +884,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={{ ...S.muted, textAlign: "center" }}>
                     {requiresPreferencesBeforeJoin
                       ? "Per questa festa devi prima indicare le preferenze drink. Solo dopo potrai inviare la tua partecipazione all’organizzatore."
-                      : "La tua risposta verrà inviata all’organizzatore. Se confermato dall'organizzatore, riceverai una mail di conferma"}
+                      : "La tua risposta verrà inviata all’organizzatore. Riceverai una mail di conferma"}
                   </div>
 
 
