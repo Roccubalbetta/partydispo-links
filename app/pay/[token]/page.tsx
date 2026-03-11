@@ -22,6 +22,52 @@ type PaymentPageRow = {
   expires_at: string | null;
 };
 
+function localizeApprovalStatus(value: string | null) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  switch (normalized) {
+    case "approved":
+      return "Approvato";
+    case "rejected":
+      return "Rifiutato";
+    case "pending_approval":
+      return "In attesa";
+    case "pending":
+      return "In attesa";
+    default:
+      return value ?? "-";
+  }
+}
+
+function localizePaymentMethod(value: string | null) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  switch (normalized) {
+    case "cash":
+      return "Contanti";
+    case "paypal":
+      return "PayPal";
+    case "satispay":
+      return "Satispay";
+    default:
+      return value ?? "non selezionato";
+  }
+}
+
+function localizePaymentStatus(value: string | null) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  switch (normalized) {
+    case "paid":
+      return "Pagato";
+    case "unpaid":
+      return "Non pagato";
+    case "pending":
+      return "In attesa";
+    case "pending_review":
+      return "In verifica";
+    default:
+      return value ?? "non disponibile";
+  }
+}
+
 function formatEuro(feeAmountCents: number | null, feeEur: number | string | null) {
   if (typeof feeAmountCents === "number" && Number.isFinite(feeAmountCents)) {
     return `€ ${(feeAmountCents / 100).toFixed(2)}`;
@@ -236,15 +282,15 @@ export default function GuestPaymentPage() {
             <div style={styles.statusGrid}>
               <div style={styles.statusItem}>
                 <span style={styles.statusLabel}>Invito</span>
-                <span style={styles.statusValue}>{row.approval_status ?? "-"}</span>
+                <span style={styles.statusValue}>{localizeApprovalStatus(row.approval_status)}</span>
               </div>
               <div style={styles.statusItem}>
                 <span style={styles.statusLabel}>Metodo</span>
-                <span style={styles.statusValue}>{row.payment_method ?? "non selezionato"}</span>
+                <span style={styles.statusValue}>{localizePaymentMethod(row.payment_method)}</span>
               </div>
               <div style={styles.statusItem}>
                 <span style={styles.statusLabel}>Pagamento</span>
-                <span style={styles.statusValue}>{row.payment_status ?? "non disponibile"}</span>
+                <span style={styles.statusValue}>{localizePaymentStatus(row.payment_status)}</span>
               </div>
             </div>
           </div>
