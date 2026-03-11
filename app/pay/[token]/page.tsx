@@ -63,14 +63,34 @@ async function notifyOrganizerPaymentUpdate(params: {
   token: string;
   method: "cash" | "satispay" | "paypal";
 }) {
-  const { error } = await supabase.functions.invoke("notify-organizer-payment-from-link", {
+  const { data, error } = await supabase.functions.invoke("notify-organizer-payment-from-link", {
     body: {
       token: params.token,
       method: params.method,
     },
   });
 
-  if (error) throw error;
+  console.log("[pay-link] notify-organizer-payment-from-link response", { data, error });
+
+  if (error) {
+    let detailedMessage = "Failed to send a request to the edge function";
+
+    try {
+      const maybeAny = error as any;
+      if (maybeAny?.context?.json) {
+        const errJson = await maybeAny.context.json();
+        detailedMessage = errJson?.error ?? errJson?.message ?? detailedMessage;
+      } else if (error instanceof Error && error.message) {
+        detailedMessage = error.message;
+      }
+    } catch {
+      if (error instanceof Error && error.message) {
+        detailedMessage = error.message;
+      }
+    }
+
+    throw new Error(detailedMessage);
+  }
 }
 
 export default function GuestPaymentPage() {
