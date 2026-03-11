@@ -35,6 +35,44 @@ function formatEuro(feeAmountCents: number | null, feeEur: number | string | nul
   return "€ 0.00";
 }
 
+function formatPartyDate(value: string | null) {
+  if (!value) return "";
+
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  const hasTz = /[zZ]|[+-]\d{2}:?\d{2}$/.test(raw);
+  const parsed = hasTz
+    ? new Date(raw)
+    : new Date(raw.replace(" ", "T") + "+01:00");
+
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  return parsed.toLocaleString("it-IT", {
+    timeZone: "Europe/Rome",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+async function notifyOrganizerPaymentUpdate(params: {
+  token: string;
+  method: "cash" | "satispay" | "paypal";
+}) {
+  const { error } = await supabase.functions.invoke("notify-organizer-payment-from-link", {
+    body: {
+      token: params.token,
+      method: params.method,
+    },
+  });
+
+  if (error) throw error;
+}
+
 export default function GuestPaymentPage() {
   const params = useParams<{ token?: string | string[] }>();
   const token = useMemo(() => {
@@ -88,9 +126,12 @@ export default function GuestPaymentPage() {
       const result = Array.isArray(data) ? data[0] : data;
       if (!result?.ok) throw new Error("Impossibile salvare il pagamento in contanti.");
 
+      await notifyOrganizerPaymentUpdate({ token, method: "cash" });
+
       setMsg("Metodo di pagamento aggiornato: contanti.");
       await load();
     } catch (e: any) {
+      console.error("[pay-link] chooseCash error", e);
       setMsg(e?.message ?? "Errore.");
     } finally {
       setBusy(false);
@@ -112,9 +153,12 @@ export default function GuestPaymentPage() {
       const result = Array.isArray(data) ? data[0] : data;
       if (!result?.ok) throw new Error("Impossibile aggiornare il pagamento.");
 
+      await notifyOrganizerPaymentUpdate({ token, method });
+
       setMsg(`Pagamento ${method} inviato all'organizzatore per verifica.`);
       await load();
     } catch (e: any) {
+      console.error("[pay-link] markPaid error", e);
       setMsg(e?.message ?? "Errore.");
     } finally {
       setBusy(false);
@@ -139,7 +183,7 @@ export default function GuestPaymentPage() {
         <div style={styles.muted}>Quota: {quota}</div>
         {row.party_date ? (
           <div style={styles.muted}>
-            Data: {new Date(row.party_date).toLocaleString("it-IT")}
+            Data: {formatPartyDate(row.party_date)}
           </div>
         ) : null}
 
