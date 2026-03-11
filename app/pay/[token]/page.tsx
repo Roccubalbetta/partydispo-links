@@ -194,7 +194,7 @@ export default function GuestPaymentPage() {
 
       await notifyOrganizerPaymentUpdate({ token, method: "cash" });
 
-      setMsg("Metodo di pagamento aggiornato: contanti.");
+      setMsg("Hai scelto di pagare in contanti. L'organizzatore vedrà la tua scelta e potrà confermare il pagamento direttamente durante la festa.");
       await load();
     } catch (e: any) {
       console.error("[pay-link] chooseCash error", e);
@@ -221,7 +221,7 @@ export default function GuestPaymentPage() {
 
       await notifyOrganizerPaymentUpdate({ token, method });
 
-      setMsg(`Pagamento ${method} inviato all'organizzatore per verifica.`);
+      setMsg(`La tua conferma di pagamento (${method}) è stata inviata all'organizzatore. Ora rimani in attesa che l'organizzatore verifichi e confermi il pagamento.`);
       await load();
     } catch (e: any) {
       console.error("[pay-link] markPaid error", e);
