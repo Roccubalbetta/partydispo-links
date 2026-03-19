@@ -84,13 +84,13 @@ export default function PrivacyPolicy() {
         </P>
 
         <P>
-          Questa Informativa descrive come PartyDispo (“<strong>noi</strong>”) raccoglie e utilizza i dati personali
+          Questa Informativa descrive come echo (“<strong>noi</strong>”) raccoglie e utilizza i dati personali
           quando usi l’app e i relativi servizi.
         </P>
 
         <SectionTitle>1. Titolare del trattamento</SectionTitle>
         <P>
-          Il titolare del trattamento è PartyDispo. Per qualsiasi richiesta puoi contattarci a{" "}
+          Il titolare del trattamento è echo. Per qualsiasi richiesta puoi contattarci a{" "}
           <a href={`mailto:${contactEmail}`} style={{ color: "#2A7FFF", fontWeight: 800 }}>
             {contactEmail}
           </a>
@@ -98,7 +98,7 @@ export default function PrivacyPolicy() {
         </P>
 
         <SectionTitle>2. Dati personali raccolti</SectionTitle>
-        <P>Quando crei un account o utilizzi PartyDispo, possiamo raccogliere i seguenti dati:</P>
+        <P>Quando crei un account o utilizzi echo, possiamo raccogliere i seguenti dati:</P>
         <ul style={{ paddingLeft: 18, margin: "8px 0" }}>
           <Li><strong>Nome</strong></Li>
           <Li><strong>Cognome</strong></Li>
@@ -136,7 +136,7 @@ export default function PrivacyPolicy() {
 
         <SectionTitle>7. Notifiche</SectionTitle>
         <P>
-          PartyDispo può inviare notifiche push per aggiornamenti relativi a inviti, partecipazione e pagamenti.
+          echo può inviare notifiche push per aggiornamenti relativi a inviti, partecipazione e pagamenti.
           Puoi gestire le notifiche dalle impostazioni del tuo dispositivo.
         </P>
 
@@ -158,7 +158,7 @@ export default function PrivacyPolicy() {
           indicando:
         </P>
         <ul style={{ paddingLeft: 18, margin: "8px 0" }}>
-          <Li>email utilizzata in PartyDispo;</Li>
+          <Li>email utilizzata in echo;</Li>
           <Li>numero di telefono associato (se presente);</Li>
           <Li>oggetto: “Richiesta cancellazione account”.</Li>
         </ul>

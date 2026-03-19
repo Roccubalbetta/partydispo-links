@@ -7,7 +7,7 @@ const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
 const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
 
 // Deep link (utile se l’utente ha già l’app installata)
-const DEEPLINK_BASE = process.env.NEXT_PUBLIC_APP_DEEPLINK_BASE || "partydispo://";
+const DEEPLINK_BASE = process.env.NEXT_PUBLIC_APP_DEEPLINK_BASE || "echo://";
 
 function detectPlatform(ua: string) {
   const isAndroid = /Android/i.test(ua);
@@ -35,6 +35,7 @@ export default function GetAppPage() {
   }, [isIOS, isAndroid]);
 
   const onOpenApp = () => {
+    if (!DEEPLINK_BASE) return;
     window.location.href = DEEPLINK_BASE;
   };
 
@@ -45,10 +46,10 @@ export default function GetAppPage() {
       <div style={S.container}>
         <div style={S.card}>
           <div style={S.hero}>
-            <div style={S.kicker}>PartyDispo</div>
+            <div style={S.kicker}>echo</div>
             <h1 style={S.h1}>Scarica l’app</h1>
             <p style={S.muted}>
-              Per vedere luogo, orario e aggiornamenti in tempo reale dell’evento, ti conviene usare PartyDispo.
+              Per vedere luogo, orario e aggiornamenti in tempo reale dell’evento, ti conviene usare echo.
             </p>
           </div>
 
@@ -82,7 +83,15 @@ export default function GetAppPage() {
             </a>
 
             {/* Se non sei sugli store, questo è l’unico bottone che “funziona” sempre */}
-            <button style={S.secondaryBtn} onClick={onOpenApp}>
+            <button
+              style={{
+                ...S.secondaryBtn,
+                opacity: DEEPLINK_BASE ? 1 : 0.6,
+                pointerEvents: DEEPLINK_BASE ? "auto" : "none",
+              }}
+              onClick={onOpenApp}
+              disabled={!DEEPLINK_BASE}
+            >
               Apri l’app (se già installata)
             </button>
 

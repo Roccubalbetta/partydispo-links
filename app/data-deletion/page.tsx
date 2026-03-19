@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cancellazione dati | PartyDispo",
-  description: "Come richiedere la cancellazione dell'account e dei dati in PartyDispo.",
+  title: "Cancellazione dati | echo",
+  description: "Come richiedere la cancellazione dell'account e dei dati in echo.",
   robots: { index: true, follow: true },
 };
 
@@ -27,7 +27,7 @@ export default function DataDeletionPage() {
         </h1>
 
         <p style={{ margin: "12px 0", lineHeight: 1.6, color: "rgba(0,0,0,0.78)" }}>
-          Puoi cancellare il tuo account PartyDispo direttamente dall'app, nella pagina <strong>Profilo</strong>, utilizzando l'opzione <strong>"Elimina account"</strong>.
+          Puoi cancellare il tuo account echo direttamente dall'app, nella pagina <strong>Profilo</strong>, utilizzando l'opzione <strong>"Elimina account"</strong>.
           In alternativa, puoi richiedere la cancellazione del tuo account e dei dati associati inviando una email a{" "}
           <a href={`mailto:${contactEmail}`} style={{ color: "#2A7FFF", fontWeight: 800 }}>
             {contactEmail}
@@ -39,7 +39,7 @@ export default function DataDeletionPage() {
         </p>
 
         <ul style={{ paddingLeft: 18, margin: "8px 0", color: "rgba(0,0,0,0.78)", lineHeight: 1.6 }}>
-          <li>Email usata in PartyDispo</li>
+          <li>Email usata in echo</li>
           <li>Numero di telefono associato (se presente)</li>
           <li>Oggetto: “Richiesta cancellazione account”</li>
         </ul>

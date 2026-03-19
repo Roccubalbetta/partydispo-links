@@ -854,7 +854,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.divider} />
 
                   <div style={S.ctaBoxStrong}>
-                    <div style={S.ctaTitleStrong}>Scarica PartyDispo 🔥</div>
+                    <div style={S.ctaTitleStrong}>Scarica echo 🔥</div>
                     <div style={S.ctaTextStrong}>
                       Con l’app ricevi:
                       <ul style={S.ctaList}>
