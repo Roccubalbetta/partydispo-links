@@ -94,14 +94,12 @@ function formatPartyDate(value: string | null) {
 
   if (Number.isNaN(parsed.getTime())) return "";
 
-  return parsed.toLocaleString("it-IT", {
+  return parsed.toLocaleDateString("it-IT", {
     timeZone: "Europe/Rome",
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
@@ -300,7 +298,7 @@ export default function GuestPaymentPage() {
           <div style={styles.ctaBoxStrong}>
             <div style={styles.ctaTitleStrong}>Scegli come pagare</div>
             <div style={styles.ctaTextStrong}>
-              Se usi Satispay o PayPal, dopo il pagamento premi il pulsante di conferma per avvisare l’organizzatore.
+              In base a cosa ha scelto l'organizzazione puoi pagare con Satispay, PayPal o contanti. Se paghi online, torna qui e conferma: riceverai una mail quando l’organizzatore verifica il pagamento.
             </div>
           </div>
 
