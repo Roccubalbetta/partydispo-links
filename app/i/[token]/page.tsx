@@ -216,11 +216,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const partyTypeLabel = useMemo(() => {
     const rawMode = String(invite?.party_mode ?? "").toUpperCase().trim();
     const rawType = String(invite?.party_type ?? "").toUpperCase().trim();
-  
+
     if (rawMode === "PAY_AND_DRINK" || rawType === "COLLECTION") return "A pagamento";
-    if (rawType === "CLOSED_LIST") return "Non a Pagamento";
-    if (rawType === "BRING_DRINKS") return "Non a Pagamento";
-    return rawMode === "PAY_AND_DRINK" ? "A pagamento" : "Non a Pagamento";
+    if (rawType === "CLOSED_LIST") return "Gratis";
+    if (rawType === "BRING_DRINKS") return "Porta il tuo";
+    return rawMode === "PAY_AND_DRINK" ? "A pagamento" : "Gratis";
   }, [invite]);
   
   const alcoholDisabled = false;
