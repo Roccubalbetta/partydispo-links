@@ -260,6 +260,7 @@ export default function GuestPaymentPage() {
   }
 
   const quota = formatEuro(row.fee_amount_cents, row.fee_eur);
+  const paymentConfirmed = String(row.payment_status ?? "").trim().toLowerCase() === "paid";
 
   return (
     <main style={styles.page}>
@@ -295,42 +296,51 @@ export default function GuestPaymentPage() {
 
           <div style={styles.divider} />
 
-          <div style={styles.ctaBoxStrong}>
-            <div style={styles.ctaTitleStrong}>Scegli come pagare</div>
-            <div style={styles.ctaTextStrong}>
-              In base a cosa ha scelto l'organizzazione puoi pagare con Satispay, PayPal o contanti. Se paghi online, torna qui e conferma: riceverai una mail quando l’organizzatore verifica il pagamento.
+          {paymentConfirmed ? (
+            <div style={styles.successBox}>
+              <div style={styles.successTitle}>Pagamento confermato ✅</div>
+              <div style={styles.successText}>Il tuo pagamento è avvenuto con successo. Ci vediamo alla festa.</div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div style={styles.ctaBoxStrong}>
+                <div style={styles.ctaTitleStrong}>Scegli come pagare</div>
+                <div style={styles.ctaTextStrong}>
+                  In base a cosa ha scelto l'organizzazione puoi pagare con Satispay, PayPal o contanti. Se paghi online, torna qui e conferma: riceverai una mail quando l’organizzatore verifica il pagamento.
+                </div>
+              </div>
 
-          <div style={{ height: 14 }} />
+              <div style={{ height: 14 }} />
 
-          <div style={styles.btnCol}>
-            {row.satispay_url ? (
-              <>
-                <a href={row.satispay_url} target="_blank" rel="noreferrer" style={styles.primaryLinkBtn}>
-                  Apri Satispay
-                </a>
-                <button style={{ ...styles.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => void markPaid("satispay")}>
-                  Ho pagato con Satispay
+              <div style={styles.btnCol}>
+                {row.satispay_url ? (
+                  <>
+                    <a href={row.satispay_url} target="_blank" rel="noreferrer" style={styles.primaryLinkBtn}>
+                      Apri Satispay
+                    </a>
+                    <button style={{ ...styles.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => void markPaid("satispay")}>
+                      Ho pagato con Satispay
+                    </button>
+                  </>
+                ) : null}
+
+                {row.paypal_url ? (
+                  <>
+                    <a href={row.paypal_url} target="_blank" rel="noreferrer" style={styles.primaryLinkBtn}>
+                      Apri PayPal
+                    </a>
+                    <button style={{ ...styles.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => void markPaid("paypal")}>
+                      Ho pagato con PayPal
+                    </button>
+                  </>
+                ) : null}
+
+                <button style={{ ...styles.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => void chooseCash()}>
+                  Pago in contanti
                 </button>
-              </>
-            ) : null}
-
-            {row.paypal_url ? (
-              <>
-                <a href={row.paypal_url} target="_blank" rel="noreferrer" style={styles.primaryLinkBtn}>
-                  Apri PayPal
-                </a>
-                <button style={{ ...styles.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => void markPaid("paypal")}>
-                  Ho pagato con PayPal
-                </button>
-              </>
-            ) : null}
-
-            <button style={{ ...styles.secondaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => void chooseCash()}>
-              Pago in contanti
-            </button>
-          </div>
+              </div>
+            </>
+          )}
 
           {msg ? <div style={styles.feedback}>{msg}</div> : null}
         </div>
@@ -505,6 +515,26 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     lineHeight: "18px",
     textAlign: "center",
+  },
+  successBox: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
+    padding: 18,
+    textAlign: "center",
+    display: "grid",
+    gap: 8,
+  },
+  successTitle: {
+    fontWeight: 950,
+    fontSize: 20,
+    letterSpacing: -0.2,
+    color: "rgba(255,255,255,0.92)",
+  },
+  successText: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 14,
+    lineHeight: "18px",
   },
   center: {
     display: "grid",

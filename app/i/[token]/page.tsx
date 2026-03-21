@@ -17,7 +17,7 @@ type InviteRow = {
   show_drink_preferences?: boolean | null;
 };
 
-type Step = "loading" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
+type Step = "loading" | "appChoice" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
 type Sex = "male" | "female" | null;
 
 type DrinkPrefs = {
@@ -291,10 +291,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
         if (cancelled) return;
 
         setSessionUserId(uid);
-        setStep("needAuth");
+        setStep("appChoice");
       } catch (e) {
         console.error("[invite] bootstrap error", e);
-        if (!cancelled) setStep("needAuth");
+        if (!cancelled) setStep("appChoice");
       }
     })();
 
@@ -750,6 +750,30 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
               <div style={S.divider} />
 
+              {step === "appChoice" ? (
+                <>
+                  <div style={S.ctaBoxStrong}>
+                    <div style={S.ctaTitleStrong}>Scarica Echo 🔥</div>
+                    <ul style={S.ctaList}>
+                      <li>Notifiche istantanee quando vieni approvato</li>
+                      <li>Luogo e orario dell’evento appena disponibili</li>
+                      <li>Info e aggiornamenti in tempo reale</li>
+                      <li>Fotocamera usa e getta della festa, nel tuo telefono</li>
+                    </ul>
+
+                    <div style={{ height: 12 }} />
+
+                    <div style={S.btnCol}>
+                      <button style={S.primaryBtn} onClick={onGetApp}>
+                        Scarica Echo
+                      </button>
+                      <button style={S.secondaryBtn} onClick={() => setStep("needAuth")}>
+                        Preferisco continuare sul web
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : null}
               {step === "needAuth" ? (
                 <>
                   <div style={S.sectionTitleCenter}>Accedi</div>
