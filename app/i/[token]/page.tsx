@@ -897,10 +897,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   {wantsToJoin && requiresPreferencesBeforeJoin ? (
                     <div style={S.prefsCard}>
-                      <div style={S.prefsTitle}>Preferenze drink</div>
-                      <div style={S.prefsHint}>
-                        Se scegli “Non bevo” non puoi selezionare alcolici. Se scegli di bere devi selezionare almeno una bevanda alcolica.
-                      </div>
+                      <div style={S.prefsTitle}>Cosa vuoi bere</div>
+                
 
                       <div style={S.prefsCard}>
   <div style={S.prefsSectionTitle}>Alcolici</div>
@@ -986,28 +984,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     })}
   </div>
 
-  <div style={S.row}>
-    <button
-      style={{ ...S.primaryBtn, opacity: prefsSaving ? 0.7 : 1 }}
-      disabled={prefsSaving}
-      onClick={onSavePrefsAndRespond}
-    >
-      {prefsSaving ? "Invio…" : "Conferma e invia"}
-    </button>
-
-    <button
-      style={S.textBtn}
-      disabled={prefsSaving}
-      onClick={() => {
-        setPendingChoice(null);
-        setResultStatus(null);
-        setWantsToJoin(false);
-        setErrorText(null);
-      }}
-    >
-      Annulla
-    </button>
-  </div>
+  
 </div>
 
                       {!prefsTouched ? (
