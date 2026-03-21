@@ -1,5 +1,5 @@
 // app/privacy/page.tsx
-// Route entrypoint for https://echo.app/privacy
+// Route entrypoint for https://echo.partydispo.app/privacy
 
 import PrivacyPolicy from "./privacy-policy";
 

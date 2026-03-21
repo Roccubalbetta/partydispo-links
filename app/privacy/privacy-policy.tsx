@@ -54,7 +54,7 @@ export default function PrivacyPolicy() {
   const lastUpdated = "03 Marzo 2026";
 
   // Email usata per supporto/privacy (come mi hai detto)
-  const contactEmail = "partydispo.app@gmail.com";
+  const contactEmail = "echo.partydispo.app@gmail.com";
 
   return (
     <main

@@ -13,6 +13,7 @@ type InviteRow = {
   party_title: string | null;
   party_date: string | null;
   party_mode?: "BRING_YOUR_OWN" | "PAY_AND_DRINK" | string | null;
+  party_type?: "COLLECTION" | "BRING_DRINKS" | "CLOSED_LIST" | string | null;
   show_drink_preferences?: boolean | null;
 };
 
@@ -28,7 +29,6 @@ type DrinkPrefs = {
   cola: boolean;
   tonic: boolean;
   lemonade: boolean;
-  water: boolean;
 };
 
 const DEFAULT_PREFS: DrinkPrefs = {
@@ -40,7 +40,6 @@ const DEFAULT_PREFS: DrinkPrefs = {
   cola: false,
   tonic: false,
   lemonade: false,
-  water: false,
 };
 
 const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
@@ -213,6 +212,18 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const title = invite?.party_title ?? previewTitle;
   const day = fmtDay(invite?.party_date ?? null) ?? previewDay;
+
+  const partyTypeLabel = useMemo(() => {
+    const rawMode = String(invite?.party_mode ?? "").toUpperCase().trim();
+    const rawType = String(invite?.party_type ?? "").toUpperCase().trim();
+  
+    if (rawMode === "PAY_AND_DRINK" || rawType === "COLLECTION") return "A pagamento";
+    if (rawType === "CLOSED_LIST") return "Non a Pagamento";
+    if (rawType === "BRING_DRINKS") return "Non a Pagamento";
+    return rawMode === "PAY_AND_DRINK" ? "A pagamento" : "Non a Pagamento";
+  }, [invite]);
+  
+  const alcoholDisabled = intoxLevel === 0;
 
   const requiresPreferencesBeforeJoin = useMemo(() => {
     const partyModeRaw = String(invite?.party_mode ?? "").toUpperCase().trim();
@@ -388,7 +399,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
         const { data, error } = await supabase
           .from("party_drink_preferences")
-          .select("rum, gin, vodka, tequila, beer, cola, tonic, lemonade, water, intox_level")
+          .select("rum, gin, vodka, tequila, beer, cola, tonic, lemonade, intox_level")
           .eq("party_id", invite.party_id)
           .eq("user_id", sessionUserId)
           .maybeSingle();
@@ -408,7 +419,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           cola: !!data.cola,
           tonic: !!data.tonic,
           lemonade: !!data.lemonade,
-          water: !!data.water,
         });
 
         const raw = typeof data.intox_level === "number" ? data.intox_level : 0;
@@ -574,20 +584,24 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   function setPref<K extends keyof DrinkPrefs>(key: K, value: boolean) {
     setPrefs((prev) => {
+      const selectedAlcoholKey = isAlcoholPreferenceKey(key);
+      if (selectedAlcoholKey && alcoholDisabled) {
+        return prev;
+      }
+  
       const next = { ...prev, [key]: value };
       setPrefsTouched(true);
-
+  
       const alcoholSelected = hasAlcoholSelection(next);
-      const selectedAlcoholKey = isAlcoholPreferenceKey(key);
-
+  
       if (selectedAlcoholKey && value && intoxLevel === 0) {
         setIntoxLevel(1);
       }
-
+  
       if (!alcoholSelected && intoxLevel > 0) {
         setIntoxLevel(0);
       }
-
+  
       return next;
     });
   }
@@ -603,6 +617,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       party_id: invite.party_id,
       user_id: sessionUserId,
       ...prefs,
+      water: false,
       intox_level: safeIntoxLevel,
       updated_at: new Date().toISOString(),
     };
@@ -732,10 +747,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           ) : (
             <>
               <div style={S.hero}>
-                <h1 style={S.h1}>Sei stato invitato all’evento</h1>
-                <div style={S.heroEvent}>{previewTitle}</div>
-                {previewDay ? <div style={S.heroSub}>🗓️ {previewDay}</div> : null}
-              </div>
+  <h1 style={S.h1}>Sei stato invitato</h1>
+  {previewDay ? <div style={S.heroSub}>🗓️ {previewDay}</div> : null}
+</div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10, textAlign: "center" }}>{errorText}</p> : null}
 
@@ -842,50 +856,48 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               {step === "ready" ? (
                 <>
                   <div style={S.partyBox}>
-                    <div style={S.partyTitle}>{title}</div>
-                    <div style={S.partyMeta}>
-                      {day ? <div>🗓️ {day}</div> : <div>🗓️ (data non disponibile)</div>}
-                      <div style={S.partyHint}>
-                        Luogo e orario saranno visibili solo dentro l’app.
-                      </div>
-                    </div>
-                  </div>
+  <div style={S.partyTitle}>{title}</div>
+  <div style={S.partyMeta}>
+    {day ? <div>🗓️ {day}</div> : <div>🗓️ (data non disponibile)</div>}
+    <div>🍾 {partyTypeLabel}</div>
+    <div style={S.partyHint}>
+      Luogo e orario saranno visibili solo dentro l’app.
+    </div>
+  </div>
+</div>
 
                   <div style={S.divider} />
 
                   <div style={S.ctaBoxStrong}>
-                    <div style={S.ctaTitleStrong}>Scarica echo 🔥</div>
-                    <div style={S.ctaTextStrong}>
-                      Con l’app ricevi:
-                      <ul style={S.ctaList}>
-                        <li>Notifiche istantanee quando vieni approvato</li>
-                        <li>Luogo e orario dell’evento (appena disponibili)</li>
-                        <li>Info e aggiornamenti in tempo reale</li>
-                        <li>Scatti “vintage” con un tocco, stile disposable camera</li>
-                      </ul>
-                    </div>
+  <div style={S.ctaTitleStrong}>Scarica Echo 🔥</div>
+  <ul style={S.ctaList}>
+    <li>Notifiche istantanee quando vieni approvato</li>
+    <li>Luogo e orario dell’evento appena disponibili</li>
+    <li>Info e aggiornamenti in tempo reale</li>
+    <li>Fotocamera usa e getta della festa, nel tuo telefono</li>
+  </ul>
 
-                    <div style={{ height: 12 }} />
+  <div style={{ height: 12 }} />
 
-                    <div style={S.btnCol}>
-                      <button style={S.primaryBtn} onClick={onGetApp}>
-                        Scarica l’app
-                      </button>
-                    </div>
+  <div style={S.btnCol}>
+    <button style={S.darkBtn} onClick={onGetApp}>
+      Scarica Echo
+    </button>
+  </div>
 
-                    <div style={S.ctaSmall}>
-                      Non vuoi scaricarla? Puoi comunque rispondere qui sotto 
-                    </div>
-                  </div>
+  <div style={S.ctaSmall}>
+    Preferisci non scaricarla? Rispondi qui sotto.
+  </div>
+</div>
 
                   <div style={S.divider} />
 
-                  <div style={S.sectionTitleCenter}>Conferma partecipazione</div>
-                  <div style={{ ...S.muted, textAlign: "center" }}>
-                    {requiresPreferencesBeforeJoin
-                      ? "Per questa festa devi prima indicare le preferenze drink. Solo dopo potrai inviare la tua partecipazione all’organizzatore."
-                      : "La tua risposta verrà inviata all’organizzatore. Riceverai una mail di conferma"}
-                  </div>
+                  <div style={S.sectionTitleCenter}>Quasi fatto.</div>
+<div style={{ ...S.muted, textAlign: "center" }}>
+  {requiresPreferencesBeforeJoin
+    ? "Indica le tue preferenze"
+    : "La tua risposta verrà inviata all’organizzatore. Riceverai una mail di conferma"}
+</div>
 
 
                   <div style={{ height: 12 }} />
@@ -897,76 +909,121 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                         Se scegli “Non bevo” non puoi selezionare alcolici. Se scegli di bere devi selezionare almeno una bevanda alcolica.
                       </div>
 
-                      <div style={S.prefsSectionTitle}>Alcolici</div>
-                      <div style={S.checkboxGrid}>
-                        {([
-                          ["rum", "Rum"],
-                          ["gin", "Gin"],
-                          ["vodka", "Vodka"],
-                          ["tequila", "Tequila"],
-                          ["beer", "Birra"],
-                        ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => (
-                          <label key={key} style={S.checkboxItem}>
-                            <input type="checkbox" checked={prefs[key]} onChange={(e) => setPref(key, e.target.checked)} />
-                            <span>{label}</span>
-                          </label>
-                        ))}
-                      </div>
+                      <div style={S.prefsCard}>
+  <div style={S.prefsSectionTitle}>Alcolici</div>
+  <div style={S.pillGrid}>
+    {([
+      ["rum", "Rum"],
+      ["gin", "Gin"],
+      ["vodka", "Vodka"],
+      ["tequila", "Tequila"],
+      ["beer", "Birra"],
+    ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => {
+      const checked = prefs[key];
+      const disabled = alcoholDisabled;
+      return (
+        <button
+          key={key}
+          type="button"
+          disabled={disabled}
+          style={
+            disabled
+              ? S.pillBtnDisabled
+              : checked
+                ? S.pillBtnActive
+                : S.pillBtn
+          }
+          onClick={() => setPref(key, !checked)}
+        >
+          {label}
+        </button>
+      );
+    })}
+  </div>
 
-                      <div style={S.prefsSectionTitle}>Analcolici</div>
-                      <div style={S.checkboxGrid}>
-                        {([
-                          ["cola", "Cola"],
-                          ["tonic", "Tonica"],
-                          ["lemonade", "Limonata"],
-                          ["water", "Acqua"],
-                        ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => (
-                          <label key={key} style={S.checkboxItem}>
-                            <input type="checkbox" checked={prefs[key]} onChange={(e) => setPref(key, e.target.checked)} />
-                            <span>{label}</span>
-                          </label>
-                        ))}
-                      </div>
+  <div style={S.prefsSectionTitle}>Analcolici</div>
+  <div style={S.pillGrid}>
+    {([
+      ["cola", "Cola"],
+      ["tonic", "Tonica"],
+      ["lemonade", "Limonata"],
+    ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => {
+      const checked = prefs[key];
+      return (
+        <button
+          key={key}
+          type="button"
+          style={checked ? S.pillBtnActive : S.pillBtn}
+          onClick={() => setPref(key, !checked)}
+        >
+          {label}
+        </button>
+      );
+    })}
+  </div>
 
-                      <div style={S.prefsSectionTitle}>Quanto vuoi bere?</div>
-                      <div style={S.levelRow}>
-                        {[0, 1, 2].map((n) => {
-                          const active = intoxLevel === n;
-                          const label = n === 0 ? "Non bevo" : n === 1 ? "Bevo" : "Mi ubriaco";
-                          return (
-                            <button
-                              key={n}
-                              type="button"
-                              style={active ? S.levelBtnActive : S.levelBtn}
-                              onClick={() => {
-                                setPrefsTouched(true);
+  <div style={S.prefsSectionTitle}>Quanto vuoi bere?</div>
+  <div style={S.levelRow}>
+    {[0, 1, 2].map((n) => {
+      const active = intoxLevel === n;
+      const label = n === 0 ? "Non bevo" : n === 1 ? "Moderato" : "Carico";
+      return (
+        <button
+          key={n}
+          type="button"
+          style={active ? S.levelBtnActive : S.levelBtn}
+          onClick={() => {
+            setPrefsTouched(true);
 
-                                if (n === 0) {
-                                  setPrefs((prev) => ({
-                                    ...prev,
-                                    rum: false,
-                                    gin: false,
-                                    vodka: false,
-                                    tequila: false,
-                                    beer: false,
-                                  }));
-                                  setIntoxLevel(0);
-                                  return;
-                                }
+            if (n === 0) {
+              setPrefs((prev) => ({
+                ...prev,
+                rum: false,
+                gin: false,
+                vodka: false,
+                tequila: false,
+                beer: false,
+              }));
+              setIntoxLevel(0);
+              return;
+            }
 
-                                if (!hasAlcoholSelection(prefs)) {
-                                  setErrorText("Se scegli di bere, devi prima selezionare almeno una preferenza alcolica.");
-                                  return;
-                                }
+            if (!hasAlcoholSelection(prefs)) {
+              return;
+            }
 
-                                setIntoxLevel(n);
-                              }}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
+            setIntoxLevel(n);
+          }}
+        >
+          {label}
+        </button>
+      );
+    })}
+  </div>
+
+  <div style={S.row}>
+    <button
+      style={{ ...S.darkBtn, opacity: prefsSaving ? 0.7 : 1 }}
+      disabled={prefsSaving}
+      onClick={onSavePrefsAndRespond}
+    >
+      {prefsSaving ? "Invio…" : "Conferma e invia"}
+    </button>
+
+    <button
+      style={S.textBtn}
+      disabled={prefsSaving}
+      onClick={() => {
+        setPendingChoice(null);
+        setResultStatus(null);
+        setWantsToJoin(false);
+        setErrorText(null);
+      }}
+    >
+      Annulla
+    </button>
+  </div>
+</div>
 
                       {!prefsTouched ? (
                         <div style={S.smallMuted}>
@@ -1027,50 +1084,35 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     </div>
                   )}
 
-                  <div style={S.debug}>
-                    {sessionUserId ? (
-                      <>
-                        Utente: <code style={S.code}>{sessionUserId.slice(0, 8)}…</code>
-                      </>
-                    ) : null}
-                  </div>
                 </>
               ) : null}
 
-              {step === "done" ? (
-                <div style={S.confirm}>
-                  <div style={S.confirmTitle}>
-                    {resultStatus === "yes" ? "✅ Presenza registrata" : "✅ Risposta registrata"}
-                  </div>
+{step === "done" ? (
+  <div style={S.confirm}>
+    <div style={S.confirmTitle}>Richiesta inviata.</div>
 
-                  <div style={{ ...S.muted, textAlign: "center" }}>
-                    {resultStatus === "yes"
-                      ? "Hai indicato che parteciperai. Puoi comunque cambiare scelta finché riapri questo link."
-                      : "Hai indicato che non parteciperai. Puoi comunque cambiare scelta finché riapri questo link."}
-                  </div>
+    <div style={{ ...S.muted, textAlign: "center" }}>
+      L'organizzatore riceverà la tua richiesta e ti confermerà al più presto.
+    </div>
 
-                  <div style={{ height: 12 }} />
+    <div style={S.divider} />
 
-                  <div style={S.row}>
-                    <button
-                      style={S.primaryBtn}
-                      onClick={() => {
-                        setStep("ready");
-                        setPendingChoice(null);
-                        setResultStatus(null);
-                        setWantsToJoin(false);
-                        setErrorText(null);
-                      }}
-                    >
-                      Cambia scelta
-                    </button>
+    <div style={S.confirmBox}>
+      <div style={S.confirmBoxTitle}>Vuoi sapere subito quando sei dentro?</div>
+      <div style={{ ...S.muted, textAlign: "center" }}>
+        Scarica Echo e ricevi una notifica non appena l'organizzatore ti approva.
+      </div>
 
-                    <button style={S.secondaryBtn} onClick={onGetApp}>
-                      Scarica l’app
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+      <div style={{ height: 12 }} />
+
+      <button style={S.darkBtn} onClick={onGetApp}>
+        Scarica Echo
+      </button>
+
+      <div style={S.ctaSmall}>Altrimenti guarda nelle mail</div>
+    </div>
+  </div>
+) : null}
             </>
           )}
         </div>
@@ -1110,7 +1152,6 @@ const S: Record<string, React.CSSProperties> = {
   },
   hero: { display: "grid", gap: 8, justifyItems: "center", textAlign: "center" },
   heroSub: { color: "rgba(255,255,255,0.62)", fontSize: 14, fontWeight: 800 },
-  heroEvent: { fontSize: 18, fontWeight: 950, color: "rgba(255,255,255,0.88)", letterSpacing: -0.2 },
   h1: { margin: 0, fontSize: 28, fontWeight: 950, letterSpacing: -0.3, textAlign: "center" },
   muted: { color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: "18px" },
   divider: { height: 1, background: "rgba(255,255,255,0.10)", margin: "16px 0" },
@@ -1236,7 +1277,17 @@ const S: Record<string, React.CSSProperties> = {
   },
   ctaTitleStrong: { fontWeight: 950, fontSize: 18, marginBottom: 8, letterSpacing: -0.2 },
   ctaTextStrong: { color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: "18px" },
-  ctaList: { marginTop: 10, marginBottom: 0, paddingLeft: 18, display: "grid", gap: 6, textAlign: "left" },
+  ctaList: {
+    marginTop: 0,
+    marginBottom: 0,
+    paddingLeft: 18,
+    display: "grid",
+    gap: 8,
+    textAlign: "left",
+    color: "rgba(255,255,255,0.70)",
+    fontSize: 14,
+    lineHeight: "18px",
+  },
   ctaSmall: { marginTop: 10, textAlign: "center", color: "rgba(255,255,255,0.55)", fontSize: 12 },
   confirm: {
     marginTop: 12,
@@ -1250,8 +1301,6 @@ const S: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
   confirmTitle: { fontWeight: 950, fontSize: 16 },
-  debug: { marginTop: 14, textAlign: "center", color: "rgba(255,255,255,0.45)", fontSize: 12 },
-  code: { background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 10 },
   center: { display: "grid", justifyItems: "center", gap: 10, padding: "18px 0" },
   spinner: {
     width: 18,
@@ -1269,25 +1318,7 @@ const S: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 12,
   },
-  prefsTitle: { fontSize: 18, fontWeight: 950, textAlign: "center" },
-  prefsHint: { color: "rgba(255,255,255,0.62)", fontSize: 13, lineHeight: "18px", textAlign: "center" },
   prefsSectionTitle: { fontWeight: 900, fontSize: 13, color: "rgba(255,255,255,0.82)" },
-  checkboxGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 10,
-  },
-  checkboxItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(0,0,0,0.16)",
-    padding: "10px 12px",
-    fontWeight: 800,
-    color: "rgba(255,255,255,0.88)",
-  },
   levelRow: {
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
@@ -1336,4 +1367,74 @@ const S: Record<string, React.CSSProperties> = {
     lineHeight: "16px",
     textAlign: "center",
   },
+
+  darkBtn: {
+    height: 46,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
+    padding: "0 14px",
+    fontWeight: 950,
+    cursor: "pointer",
+    background: "rgba(0,0,0,0.30)",
+    color: "rgba(255,255,255,0.92)",
+    width: "100%",
+    maxWidth: 320,
+  },
+  textBtn: {
+    border: 0,
+    background: "transparent",
+    color: "rgba(255,255,255,0.62)",
+    fontWeight: 900,
+    cursor: "pointer",
+    padding: 0,
+    width: "100%",
+    maxWidth: 320,
+  },
+  pillGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+  },
+  pillBtn: {
+    minHeight: 44,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.16)",
+    padding: "0 14px",
+    fontWeight: 800,
+    color: "rgba(255,255,255,0.88)",
+    cursor: "pointer",
+  },
+  pillBtnActive: {
+    minHeight: 44,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(255,255,255,0.92)",
+    padding: "0 14px",
+    fontWeight: 900,
+    color: "#111",
+    cursor: "pointer",
+  },
+  pillBtnDisabled: {
+    minHeight: 44,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.04)",
+    padding: "0 14px",
+    fontWeight: 800,
+    color: "rgba(255,255,255,0.35)",
+    cursor: "not-allowed",
+  },
+  confirmBox: {
+    width: "100%",
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.05)",
+    padding: 14,
+    display: "grid",
+    justifyItems: "center",
+    gap: 8,
+    textAlign: "center",
+  },
+  confirmBoxTitle: { fontWeight: 950, fontSize: 16 },
 };

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default function SafetyStandardsPage() {
-  const contactEmail = "partydispo.app@gmail.com";
+  const contactEmail = "echo.partydispo.app@gmail.com";
 
   return (
     <main style={{ minHeight: "100vh", background: "#F6F8FF", padding: "32px 16px" }}>
