@@ -223,7 +223,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return rawMode === "PAY_AND_DRINK" ? "A pagamento" : "Non a Pagamento";
   }, [invite]);
   
-  const alcoholDisabled = intoxLevel === 0;
+  const alcoholDisabled = prefsTouched && intoxLevel === 0;
 
   const requiresPreferencesBeforeJoin = useMemo(() => {
     const partyModeRaw = String(invite?.party_mode ?? "").toUpperCase().trim();
@@ -877,8 +877,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   <div style={{ height: 12 }} />
 
   <div style={S.btnCol}>
-    <button style={S.darkBtn} onClick={onGetApp}>
-      Scarica cho
+    <button style={S.primaryBtn} onClick={onGetApp}>
+      Scarica echo
     </button>
   </div>
 
@@ -985,10 +985,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               return;
             }
 
-            if (!hasAlcoholSelection(prefs)) {
-              return;
-            }
-
             setIntoxLevel(n);
           }}
         >
@@ -1000,7 +996,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   <div style={S.row}>
     <button
-      style={{ ...S.darkBtn, opacity: prefsSaving ? 0.7 : 1 }}
+      style={{ ...S.primaryBtn, opacity: prefsSaving ? 0.7 : 1 }}
       disabled={prefsSaving}
       onClick={onSavePrefsAndRespond}
     >
