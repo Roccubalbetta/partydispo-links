@@ -223,7 +223,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return rawMode === "PAY_AND_DRINK" ? "A pagamento" : "Non a Pagamento";
   }, [invite]);
   
-  const alcoholDisabled = prefsTouched && intoxLevel === 0;
+  const alcoholDisabled = false;
 
   const requiresPreferencesBeforeJoin = useMemo(() => {
     const partyModeRaw = String(invite?.party_mode ?? "").toUpperCase().trim();
@@ -584,24 +584,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   function setPref<K extends keyof DrinkPrefs>(key: K, value: boolean) {
     setPrefs((prev) => {
-      const selectedAlcoholKey = isAlcoholPreferenceKey(key);
-      if (selectedAlcoholKey && alcoholDisabled) {
-        return prev;
-      }
-  
       const next = { ...prev, [key]: value };
       setPrefsTouched(true);
-  
+
+      const selectedAlcoholKey = isAlcoholPreferenceKey(key);
       const alcoholSelected = hasAlcoholSelection(next);
-  
-      if (selectedAlcoholKey && value && intoxLevel === 0) {
+
+      if (selectedAlcoholKey && alcoholSelected && intoxLevel === 0) {
         setIntoxLevel(1);
       }
-  
-      if (!alcoholSelected && intoxLevel > 0) {
+
+      if (!alcoholSelected) {
         setIntoxLevel(0);
       }
-  
+
       return next;
     });
   }
@@ -790,7 +786,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={S.btnCol}>
                     <button style={{ ...S.primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={onSendCode}>
-                      {busy ? "Invio…" : otpCooldownSec > 0 ? `Riprova tra ${otpCooldownSec}s` : "Invia codice OTP"}
+                      {busy ? "Invio…" : otpCooldownSec > 0 ? `Riprova tra ${otpCooldownSec}s` : "Invia codice"}
                     </button>
                     <button style={S.secondaryBtn} onClick={onGetApp}>
                       Scarica l’app
@@ -917,19 +913,11 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       ["beer", "Birra"],
     ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => {
       const checked = prefs[key];
-      const disabled = alcoholDisabled;
       return (
         <button
           key={key}
           type="button"
-          disabled={disabled}
-          style={
-            disabled
-              ? S.pillBtnDisabled
-              : checked
-                ? S.pillBtnActive
-                : S.pillBtn
-          }
+          style={checked ? S.pillBtnActive : S.pillBtn}
           onClick={() => setPref(key, !checked)}
         >
           {label}
@@ -982,6 +970,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 beer: false,
               }));
               setIntoxLevel(0);
+              return;
+            }
+
+            if (!hasAlcoholSelection(prefs)) {
               return;
             }
 
