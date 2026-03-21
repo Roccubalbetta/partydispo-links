@@ -748,7 +748,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             <>
               <div style={S.hero}>
   <h1 style={S.h1}>Sei stato invitato</h1>
-  {previewDay ? <div style={S.heroSub}>🗓️ {previewDay}</div> : null}
 </div>
 
               {errorText ? <p style={{ ...S.muted, marginTop: 10, textAlign: "center" }}>{errorText}</p> : null}
@@ -804,7 +803,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 <>
                   <div style={S.sectionTitleCenter}>Inserisci il codice</div>
                   <div style={{ ...S.muted, textAlign: "center" }}>
-                    Ti abbiamo inviato un codice OTP a <b>{email.trim().toLowerCase()}</b>. 
+                    Ti abbiamo inviato un codice a <b>{email.trim().toLowerCase()}</b>. 
                   </div>
 
                   <div style={{ height: 8 }} />
@@ -827,7 +826,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={{ height: 12 }} />
                   <input
                     style={S.input}
-                    placeholder="Codice OTP (8 cifre)"
+                    placeholder="Codice di accesso"
                     value={otp}
                     onChange={(e) => setOtp(sanitizeOtp(e.target.value))}
                     inputMode="numeric"
@@ -836,9 +835,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   />
 
                   <div style={{ height: 8 }} />
-                  <div style={{ ...S.muted, textAlign: "center" }}>
-                    Inserisci esattamente <b>8 cifre</b> e assicurati di usare <b>l’ultimo</b> codice ricevuto.
-                  </div>
+              
 
                   <div style={{ height: 12 }} />
 
@@ -869,7 +866,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   <div style={S.divider} />
 
                   <div style={S.ctaBoxStrong}>
-  <div style={S.ctaTitleStrong}>Scarica Echo 🔥</div>
+  <div style={S.ctaTitleStrong}>Scarica echo 🔥</div>
   <ul style={S.ctaList}>
     <li>Notifiche istantanee quando vieni approvato</li>
     <li>Luogo e orario dell’evento appena disponibili</li>
@@ -881,7 +878,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   <div style={S.btnCol}>
     <button style={S.darkBtn} onClick={onGetApp}>
-      Scarica Echo
+      Scarica cho
     </button>
   </div>
 
@@ -892,10 +889,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
                   <div style={S.divider} />
 
-                  <div style={S.sectionTitleCenter}>Quasi fatto.</div>
+                  <div style={S.sectionTitleCenter}>Facci sapere se ci sei</div>
 <div style={{ ...S.muted, textAlign: "center" }}>
   {requiresPreferencesBeforeJoin
-    ? "Indica le tue preferenze"
+    ? "Indica anche le tue preferenze"
     : "La tua risposta verrà inviata all’organizzatore. Riceverai una mail di conferma"}
 </div>
 
@@ -1105,7 +1102,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       <div style={{ height: 12 }} />
 
-      <button style={S.darkBtn} onClick={onGetApp}>
+      <button style={S.primaryBtn} onClick={onGetApp}>
         Scarica Echo
       </button>
 
