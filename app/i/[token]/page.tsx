@@ -18,7 +18,11 @@ type InviteRow = {
   selected_products?: string[] | null;
   visible_products?: string[] | null;
   organizer_selected_products?: string[] | null;
-  products?: Partial<Record<keyof DrinkPrefs, boolean>> | null;
+  allowed_products?: string[] | Partial<Record<keyof DrinkPrefs, boolean>> | null;
+  available_products?: string[] | Partial<Record<keyof DrinkPrefs, boolean>> | null;
+  enabled_products?: string[] | Partial<Record<keyof DrinkPrefs, boolean>> | null;
+  drink_products?: string[] | Partial<Record<keyof DrinkPrefs, boolean>> | null;
+  selected_drinks?: string[] | null;
   [key: string]: any;
 };
 
@@ -76,12 +80,11 @@ function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey
     invite.selected_products,
     invite.visible_products,
     invite.organizer_selected_products,
-    invite.allowed_products,
-    invite.available_products,
-    invite.enabled_products,
-    invite.drink_products,
+    Array.isArray(invite.allowed_products) ? invite.allowed_products : null,
+    Array.isArray(invite.available_products) ? invite.available_products : null,
+    Array.isArray(invite.enabled_products) ? invite.enabled_products : null,
+    Array.isArray(invite.drink_products) ? invite.drink_products : null,
     invite.selected_drinks,
-    Array.isArray(invite?.products) ? invite.products : null,
   ];
 
   for (const candidate of arrayCandidates) {
@@ -94,7 +97,6 @@ function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey
   }
 
   const objectCandidates = [
-    invite.products,
     invite.allowed_products,
     invite.available_products,
     invite.enabled_products,
@@ -108,6 +110,18 @@ function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey
     }
   }
 
+  console.log("[invite-web] organizer visible products", {
+    token: invite.token,
+    selected_products: invite.selected_products,
+    visible_products: invite.visible_products,
+    organizer_selected_products: invite.organizer_selected_products,
+    allowed_products: invite.allowed_products,
+    available_products: invite.available_products,
+    enabled_products: invite.enabled_products,
+    drink_products: invite.drink_products,
+    selected_drinks: invite.selected_drinks,
+    normalized: Array.from(set),
+  });
   return Array.from(set);
 }
 
