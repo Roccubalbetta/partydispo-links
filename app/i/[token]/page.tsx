@@ -71,57 +71,125 @@ function isDrinkPrefKey(value: string): value is DrinkPrefKey {
   return value in DEFAULT_PREFS;
 }
 
+function tryAddDrinkPrefValue(target: Set<DrinkPrefKey>, raw: unknown) {
+  if (typeof raw !== "string") return;
+  const normalized = raw.trim().toLowerCase();
+  if (isDrinkPrefKey(normalized)) target.add(normalized);
+}
+
+function collectDrinkPrefsFromUnknown(target: Set<DrinkPrefKey>, value: unknown) {
+  if (!value) return;
+
+  if (typeof value === "string") {
+    tryAddDrinkPrefValue(target, value);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectDrinkPrefsFromUnknown(target, item);
+    }
+    return;
+  }
+
+  if (typeof value === "object") {
+    for (const [rawKey, rawValue] of Object.entries(value as Record<string, unknown>)) {
+      const normalizedKey = rawKey.trim().toLowerCase();
+
+      if (typeof rawValue === "boolean") {
+        if (rawValue && isDrinkPrefKey(normalizedKey)) target.add(normalizedKey);
+        continue;
+      }
+
+      if (isDrinkPrefKey(normalizedKey)) {
+        if (rawValue === 1 || rawValue === "1" || rawValue === "true" || rawValue === true) {
+          target.add(normalizedKey);
+          continue;
+        }
+      }
+
+      collectDrinkPrefsFromUnknown(target, rawValue);
+    }
+  }
+}
+
 function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey[] {
   if (!invite) return [];
 
   const set = new Set<DrinkPrefKey>();
 
-  const arrayCandidates = [
+  const explicitCandidates: unknown[] = [
     invite.selected_products,
     invite.visible_products,
     invite.organizer_selected_products,
-    Array.isArray(invite.allowed_products) ? invite.allowed_products : null,
-    Array.isArray(invite.available_products) ? invite.available_products : null,
-    Array.isArray(invite.enabled_products) ? invite.enabled_products : null,
-    Array.isArray(invite.drink_products) ? invite.drink_products : null,
-    invite.selected_drinks,
-  ];
-
-  for (const candidate of arrayCandidates) {
-    if (!Array.isArray(candidate)) continue;
-    for (const raw of candidate) {
-      if (typeof raw !== "string") continue;
-      const normalized = raw.trim().toLowerCase();
-      if (isDrinkPrefKey(normalized)) set.add(normalized);
-    }
-  }
-
-  const objectCandidates = [
     invite.allowed_products,
     invite.available_products,
     invite.enabled_products,
     invite.drink_products,
+    invite.selected_drinks,
+    invite.selectedProducts,
+    invite.visibleProducts,
+    invite.organizerSelectedProducts,
+    invite.allowedProducts,
+    invite.availableProducts,
+    invite.enabledProducts,
+    invite.drinkProducts,
+    invite.selectedDrinks,
+    invite.drink_preferences,
+    invite.drinkPreferences,
+    invite.party_products,
+    invite.partyProducts,
+    invite.products_available,
+    invite.productsAvailable,
   ];
-  for (const candidate of objectCandidates) {
-    if (!candidate || Array.isArray(candidate) || typeof candidate !== "object") continue;
-    for (const [rawKey, rawValue] of Object.entries(candidate)) {
-      const normalized = rawKey.trim().toLowerCase();
-      if (rawValue && isDrinkPrefKey(normalized)) set.add(normalized);
-    }
+
+  for (const candidate of explicitCandidates) {
+    collectDrinkPrefsFromUnknown(set, candidate);
+  }
+
+  const nestedCandidates: unknown[] = [
+    invite.party,
+    invite.settings,
+    invite.config,
+    invite.metadata,
+    invite.payload,
+    invite.data,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    if (!candidate || typeof candidate !== "object") continue;
+
+    const source = candidate as Record<string, unknown>;
+    collectDrinkPrefsFromUnknown(set, source.selected_products);
+    collectDrinkPrefsFromUnknown(set, source.visible_products);
+    collectDrinkPrefsFromUnknown(set, source.organizer_selected_products);
+    collectDrinkPrefsFromUnknown(set, source.allowed_products);
+    collectDrinkPrefsFromUnknown(set, source.available_products);
+    collectDrinkPrefsFromUnknown(set, source.enabled_products);
+    collectDrinkPrefsFromUnknown(set, source.drink_products);
+    collectDrinkPrefsFromUnknown(set, source.selected_drinks);
+    collectDrinkPrefsFromUnknown(set, source.selectedProducts);
+    collectDrinkPrefsFromUnknown(set, source.visibleProducts);
+    collectDrinkPrefsFromUnknown(set, source.organizerSelectedProducts);
+    collectDrinkPrefsFromUnknown(set, source.allowedProducts);
+    collectDrinkPrefsFromUnknown(set, source.availableProducts);
+    collectDrinkPrefsFromUnknown(set, source.enabledProducts);
+    collectDrinkPrefsFromUnknown(set, source.drinkProducts);
+    collectDrinkPrefsFromUnknown(set, source.selectedDrinks);
+    collectDrinkPrefsFromUnknown(set, source.drink_preferences);
+    collectDrinkPrefsFromUnknown(set, source.drinkPreferences);
+    collectDrinkPrefsFromUnknown(set, source.party_products);
+    collectDrinkPrefsFromUnknown(set, source.partyProducts);
+    collectDrinkPrefsFromUnknown(set, source.products_available);
+    collectDrinkPrefsFromUnknown(set, source.productsAvailable);
   }
 
   console.log("[invite-web] organizer visible products", {
     token: invite.token,
-    selected_products: invite.selected_products,
-    visible_products: invite.visible_products,
-    organizer_selected_products: invite.organizer_selected_products,
-    allowed_products: invite.allowed_products,
-    available_products: invite.available_products,
-    enabled_products: invite.enabled_products,
-    drink_products: invite.drink_products,
-    selected_drinks: invite.selected_drinks,
+    invite,
     normalized: Array.from(set),
   });
+
   return Array.from(set);
 }
 
