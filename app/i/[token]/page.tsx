@@ -76,6 +76,11 @@ function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey
     invite.selected_products,
     invite.visible_products,
     invite.organizer_selected_products,
+    invite.allowed_products,
+    invite.available_products,
+    invite.enabled_products,
+    invite.drink_products,
+    invite.selected_drinks,
     Array.isArray(invite?.products) ? invite.products : null,
   ];
 
@@ -88,7 +93,13 @@ function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey
     }
   }
 
-  const objectCandidates = [invite.products];
+  const objectCandidates = [
+    invite.products,
+    invite.allowed_products,
+    invite.available_products,
+    invite.enabled_products,
+    invite.drink_products,
+  ];
   for (const candidate of objectCandidates) {
     if (!candidate || Array.isArray(candidate) || typeof candidate !== "object") continue;
     for (const [rawKey, rawValue] of Object.entries(candidate)) {
@@ -288,10 +299,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return partyModeRaw === "PAY_AND_DRINK" && invite?.show_drink_preferences === true;
   }, [invite]);
 
-  const visibleProductKeys = useMemo(() => {
-    const selected = normalizeInviteSelectedProducts(invite);
-    return selected.length > 0 ? selected : [...ALCOHOL_KEYS, ...SOFT_DRINK_KEYS];
-  }, [invite]);
+  const visibleProductKeys = useMemo(() => normalizeInviteSelectedProducts(invite), [invite]);
 
   const visibleAlcoholKeys = useMemo(
     () => ALCOHOL_KEYS.filter((key) => visibleProductKeys.includes(key)),
@@ -302,6 +310,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     () => SOFT_DRINK_KEYS.filter((key) => visibleProductKeys.includes(key)),
     [visibleProductKeys]
   );
+
+  const hasVisibleProducts = visibleAlcoholKeys.length > 0 || visibleSoftDrinkKeys.length > 0;
 
   useEffect(() => {
     console.log("[invite-web] preferences gate", {
@@ -996,6 +1006,12 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                     <div style={S.prefsCard}>
                       <div style={S.prefsTitle}>Cosa vuoi bere</div>
                       <div style={S.prefsCard}>
+                        {!hasVisibleProducts ? (
+                          <div style={S.smallMuted}>
+                            Al momento l’organizzatore non ha reso disponibili prodotti selezionabili.
+                          </div>
+                        ) : null}
+
                         {visibleAlcoholKeys.length > 0 ? (
                           <>
                             <div style={S.prefsSectionTitle}>Alcolici</div>
