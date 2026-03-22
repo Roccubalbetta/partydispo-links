@@ -15,6 +15,11 @@ type InviteRow = {
   party_mode?: "BRING_YOUR_OWN" | "PAY_AND_DRINK" | string | null;
   party_type?: "COLLECTION" | "BRING_DRINKS" | "CLOSED_LIST" | string | null;
   show_drink_preferences?: boolean | null;
+  selected_products?: string[] | null;
+  visible_products?: string[] | null;
+  organizer_selected_products?: string[] | null;
+  products?: Partial<Record<keyof DrinkPrefs, boolean>> | null;
+  [key: string]: any;
 };
 
 type Step = "loading" | "appChoice" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
@@ -41,6 +46,59 @@ const DEFAULT_PREFS: DrinkPrefs = {
   tonic: false,
   lemonade: false,
 };
+
+type DrinkPrefKey = keyof DrinkPrefs;
+
+const ALCOHOL_KEYS: DrinkPrefKey[] = ["rum", "gin", "vodka", "tequila", "beer"];
+const SOFT_DRINK_KEYS: DrinkPrefKey[] = ["cola", "tonic", "lemonade"];
+
+const PRODUCT_LABELS: Record<DrinkPrefKey, string> = {
+  rum: "Rum",
+  gin: "Gin",
+  vodka: "Vodka",
+  tequila: "Tequila",
+  beer: "Birra",
+  cola: "Cola",
+  tonic: "Tonica",
+  lemonade: "Limonata",
+};
+
+function isDrinkPrefKey(value: string): value is DrinkPrefKey {
+  return value in DEFAULT_PREFS;
+}
+
+function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey[] {
+  if (!invite) return [];
+
+  const set = new Set<DrinkPrefKey>();
+
+  const arrayCandidates = [
+    invite.selected_products,
+    invite.visible_products,
+    invite.organizer_selected_products,
+    Array.isArray(invite?.products) ? invite.products : null,
+  ];
+
+  for (const candidate of arrayCandidates) {
+    if (!Array.isArray(candidate)) continue;
+    for (const raw of candidate) {
+      if (typeof raw !== "string") continue;
+      const normalized = raw.trim().toLowerCase();
+      if (isDrinkPrefKey(normalized)) set.add(normalized);
+    }
+  }
+
+  const objectCandidates = [invite.products];
+  for (const candidate of objectCandidates) {
+    if (!candidate || Array.isArray(candidate) || typeof candidate !== "object") continue;
+    for (const [rawKey, rawValue] of Object.entries(candidate)) {
+      const normalized = rawKey.trim().toLowerCase();
+      if (rawValue && isDrinkPrefKey(normalized)) set.add(normalized);
+    }
+  }
+
+  return Array.from(set);
+}
 
 const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
 const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
@@ -229,6 +287,21 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     const partyModeRaw = String(invite?.party_mode ?? "").toUpperCase().trim();
     return partyModeRaw === "PAY_AND_DRINK" && invite?.show_drink_preferences === true;
   }, [invite]);
+
+  const visibleProductKeys = useMemo(() => {
+    const selected = normalizeInviteSelectedProducts(invite);
+    return selected.length > 0 ? selected : [...ALCOHOL_KEYS, ...SOFT_DRINK_KEYS];
+  }, [invite]);
+
+  const visibleAlcoholKeys = useMemo(
+    () => ALCOHOL_KEYS.filter((key) => visibleProductKeys.includes(key)),
+    [visibleProductKeys]
+  );
+
+  const visibleSoftDrinkKeys = useMemo(
+    () => SOFT_DRINK_KEYS.filter((key) => visibleProductKeys.includes(key)),
+    [visibleProductKeys]
+  );
 
   useEffect(() => {
     console.log("[invite-web] preferences gate", {
@@ -922,94 +995,94 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   {wantsToJoin && requiresPreferencesBeforeJoin ? (
                     <div style={S.prefsCard}>
                       <div style={S.prefsTitle}>Cosa vuoi bere</div>
-                
-
                       <div style={S.prefsCard}>
-  <div style={S.prefsSectionTitle}>Alcolici</div>
-  <div style={S.pillGrid}>
-    {([
-      ["rum", "Rum"],
-      ["gin", "Gin"],
-      ["vodka", "Vodka"],
-      ["tequila", "Tequila"],
-      ["beer", "Birra"],
-    ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => {
-      const checked = prefs[key];
-      return (
-        <button
-          key={key}
-          type="button"
-          style={checked ? S.pillBtnActive : S.pillBtn}
-          onClick={() => setPref(key, !checked)}
-        >
-          {label}
-        </button>
-      );
-    })}
-  </div>
+                        {visibleAlcoholKeys.length > 0 ? (
+                          <>
+                            <div style={S.prefsSectionTitle}>Alcolici</div>
+                            <div style={S.toggleList}>
+                              {visibleAlcoholKeys.map((key) => {
+                                const checked = prefs[key];
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    style={checked ? S.toggleRowActive : S.toggleRow}
+                                    onClick={() => setPref(key, !checked)}
+                                  >
+                                    <span>{PRODUCT_LABELS[key]}</span>
+                                    <span style={checked ? S.toggleTrackActive : S.toggleTrack}>
+                                      <span style={checked ? S.toggleThumbActive : S.toggleThumb} />
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : null}
 
-  <div style={S.prefsSectionTitle}>Analcolici</div>
-  <div style={S.pillGrid}>
-    {([
-      ["cola", "Cola"],
-      ["tonic", "Tonica"],
-      ["lemonade", "Limonata"],
-    ] as Array<[keyof DrinkPrefs, string]>).map(([key, label]) => {
-      const checked = prefs[key];
-      return (
-        <button
-          key={key}
-          type="button"
-          style={checked ? S.pillBtnActive : S.pillBtn}
-          onClick={() => setPref(key, !checked)}
-        >
-          {label}
-        </button>
-      );
-    })}
-  </div>
+                        {visibleSoftDrinkKeys.length > 0 ? (
+                          <>
+                            <div style={S.prefsSectionTitle}>Analcolici</div>
+                            <div style={S.toggleList}>
+                              {visibleSoftDrinkKeys.map((key) => {
+                                const checked = prefs[key];
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    style={checked ? S.toggleRowActive : S.toggleRow}
+                                    onClick={() => setPref(key, !checked)}
+                                  >
+                                    <span>{PRODUCT_LABELS[key]}</span>
+                                    <span style={checked ? S.toggleTrackActive : S.toggleTrack}>
+                                      <span style={checked ? S.toggleThumbActive : S.toggleThumb} />
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : null}
 
-  <div style={S.prefsSectionTitle}>Quanto vuoi bere?</div>
-  <div style={S.levelRow}>
-    {[0, 1, 2].map((n) => {
-      const active = intoxLevel === n;
-      const label = n === 0 ? "Non bevo" : n === 1 ? "Moderato" : "Carico";
-      return (
-        <button
-          key={n}
-          type="button"
-          style={active ? S.levelBtnActive : S.levelBtn}
-          onClick={() => {
-            setPrefsTouched(true);
+                        <div style={S.prefsSectionTitle}>Quanto vuoi bere?</div>
+                        <div style={S.levelRow}>
+                          {[0, 1, 2].map((n) => {
+                            const active = intoxLevel === n;
+                            const label = n === 0 ? "Non bevo" : n === 1 ? "Moderato" : "Carico";
+                            return (
+                              <button
+                                key={n}
+                                type="button"
+                                style={active ? S.levelBtnActive : S.levelBtn}
+                                onClick={() => {
+                                  setPrefsTouched(true);
 
-            if (n === 0) {
-              setPrefs((prev) => ({
-                ...prev,
-                rum: false,
-                gin: false,
-                vodka: false,
-                tequila: false,
-                beer: false,
-              }));
-              setIntoxLevel(0);
-              return;
-            }
+                                  if (n === 0) {
+                                    setPrefs((prev) => ({
+                                      ...prev,
+                                      rum: false,
+                                      gin: false,
+                                      vodka: false,
+                                      tequila: false,
+                                      beer: false,
+                                    }));
+                                    setIntoxLevel(0);
+                                    return;
+                                  }
 
-            if (!hasAlcoholSelection(prefs)) {
-              return;
-            }
+                                  if (!hasAlcoholSelection(prefs)) {
+                                    return;
+                                  }
 
-            setIntoxLevel(n);
-          }}
-        >
-          {label}
-        </button>
-      );
-    })}
-  </div>
-
-  
-</div>
+                                  setIntoxLevel(n);
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
 
                       {!prefsTouched ? (
                         <div style={S.smallMuted}>
@@ -1380,6 +1453,82 @@ const S: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 10,
+  },
+  toggleList: {
+    display: "grid",
+    gap: 10,
+  },
+  toggleRow: {
+    minHeight: 52,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.16)",
+    padding: "0 14px",
+    fontWeight: 800,
+    color: "rgba(255,255,255,0.88)",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    width: "100%",
+    textAlign: "left",
+  },
+  toggleRowActive: {
+    minHeight: 52,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(255,255,255,0.10)",
+    padding: "0 14px",
+    fontWeight: 900,
+    color: "rgba(255,255,255,0.96)",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    width: "100%",
+    textAlign: "left",
+  },
+  toggleTrack: {
+    width: 46,
+    height: 28,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.16)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    display: "flex",
+    alignItems: "center",
+    padding: 3,
+    boxSizing: "border-box",
+    justifyContent: "flex-start",
+    flexShrink: 0,
+  },
+  toggleTrackActive: {
+    width: 46,
+    height: 28,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid rgba(255,255,255,0.22)",
+    display: "flex",
+    alignItems: "center",
+    padding: 3,
+    boxSizing: "border-box",
+    justifyContent: "flex-end",
+    flexShrink: 0,
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.92)",
+    display: "block",
+  },
+  toggleThumbActive: {
+    width: 20,
+    height: 20,
+    borderRadius: 999,
+    background: "#111",
+    display: "block",
   },
   pillBtn: {
     minHeight: 44,
