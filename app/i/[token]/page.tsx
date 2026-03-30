@@ -967,7 +967,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                       </button>
                     </div>
                     <button type="button" style={sex === null ? S.genderBtnActive : S.genderBtn} onClick={() => setSex(null)}>
-                      Preferisco non indicarlo
+                      Altro
                     </button>
                   </div>
 
