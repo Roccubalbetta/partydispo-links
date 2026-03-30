@@ -150,12 +150,14 @@ export default function GuestPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>("");
+  const [requestSent, setRequestSent] = useState(false);
 
   async function load() {
     if (!token) return;
 
     setLoading(true);
     setMsg("");
+    setRequestSent(false);
 
     const { data, error } = await supabase.rpc("get_guest_payment_page_public", {
       p_token: token,
@@ -192,8 +194,10 @@ export default function GuestPaymentPage() {
 
       await notifyOrganizerPaymentUpdate({ token, method: "cash" });
 
-      setMsg("Hai scelto di pagare in contanti. L'organizzatore vedrà la tua scelta e potrà confermare il pagamento direttamente durante la festa.");
+      setRequestSent(true);
+      setMsg("La tua richiesta di pagamento in contanti è stata inviata. Riceverai una mail di conferma quando l’organizzatore completerà la verifica del pagamento.");
       await load();
+      setRequestSent(true);
     } catch (e: any) {
       console.error("[pay-link] chooseCash error", e);
       setMsg(e?.message ?? "Errore.");
@@ -219,8 +223,10 @@ export default function GuestPaymentPage() {
 
       await notifyOrganizerPaymentUpdate({ token, method });
 
-      setMsg(`La tua conferma di pagamento (${method}) è stata inviata all'organizzatore. Ora rimani in attesa che l'organizzatore verifichi e confermi il pagamento.`);
+      setRequestSent(true);
+      setMsg(`La tua richiesta di conferma pagamento è stata inviata all’organizzatore. Riceverai una mail di conferma quando il pagamento sarà verificato e completato.`);
       await load();
+      setRequestSent(true);
     } catch (e: any) {
       console.error("[pay-link] markPaid error", e);
       setMsg(e?.message ?? "Errore.");
@@ -341,6 +347,15 @@ export default function GuestPaymentPage() {
               </div>
             </>
           )}
+
+          {requestSent ? (
+            <div style={styles.requestSentBox}>
+              <div style={styles.requestSentTitle}>Richiesta inviata ✅</div>
+              <div style={styles.requestSentText}>
+                Abbiamo avvisato l’organizzatore. Riceverai una mail di conferma quando il pagamento sarà verificato e completato.
+              </div>
+            </div>
+          ) : null}
 
           {msg ? <div style={styles.feedback}>{msg}</div> : null}
         </div>
@@ -510,11 +525,32 @@ const styles: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.92)",
   },
   feedback: {
-    marginTop: 16,
+    marginTop: 12,
     color: "rgba(255,255,255,0.72)",
     fontSize: 13,
     lineHeight: "18px",
     textAlign: "center",
+  },
+  requestSentBox: {
+    marginTop: 16,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
+    padding: 18,
+    textAlign: "center",
+    display: "grid",
+    gap: 8,
+  },
+  requestSentTitle: {
+    fontWeight: 950,
+    fontSize: 20,
+    letterSpacing: -0.2,
+    color: "rgba(255,255,255,0.92)",
+  },
+  requestSentText: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 14,
+    lineHeight: "18px",
   },
   successBox: {
     borderRadius: 18,
