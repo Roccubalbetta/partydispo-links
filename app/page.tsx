@@ -1,3 +1,8 @@
+
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
 const features = [
   {
     title: "Inviti privati",
@@ -40,7 +45,17 @@ const reviews = [
   },
 ];
 
-function PhoneMock({ title, subtitle, accent }: { title: string; subtitle: string; accent: string }) {
+function PhoneMock({
+  title,
+  subtitle,
+  accent,
+  variant = "party",
+}: {
+  title: string;
+  subtitle: string;
+  accent: string;
+  variant?: "party" | "calendar" | "gallery";
+}) {
   return (
     <div className="relative h-[560px] w-[276px] rounded-[46px] border border-black/10 bg-[#1b1b1f] p-[10px] shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
       <div className="relative h-full overflow-hidden rounded-[38px] bg-[#eef1fb]">
@@ -71,68 +86,115 @@ function PhoneMock({ title, subtitle, accent }: { title: string; subtitle: strin
         </div>
 
         <div className="relative z-10 mt-7 px-4 pb-4">
-          <div className="space-y-3 rounded-[30px] border border-black/8 bg-white/72 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[15px] font-semibold text-black">Compleanno Giovanni 🎉</div>
-                <div className="mt-1 text-[12px] text-black/40">Gestisci inviti, partecipanti e preferenze</div>
+          {variant === "calendar" ? (
+            <div className="space-y-3 rounded-[30px] border border-black/8 bg-white/72 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+              <div className="flex items-center justify-between text-black">
+                <button className="text-xl leading-none">‹</button>
+                <div className="text-[18px] font-semibold">Marzo 2026</div>
+                <button className="text-xl leading-none">›</button>
               </div>
-              <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">Privato</div>
+              <div className="grid grid-cols-7 gap-y-4 text-center text-[12px] font-medium text-black/38">
+                {['L','M','M','G','V','S','D'].map((d) => (
+                  <div key={d}>{d}</div>
+                ))}
+                {Array.from({ length: 31 }).map((_, i) => {
+                  const day = i + 1;
+                  const active = day === 24;
+                  const dotted = day === 24 || day === 28 || day === 30;
+                  return (
+                    <div key={day} className="flex flex-col items-center gap-1 text-black">
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full text-[16px] font-semibold ${
+                          active ? "bg-[#3b82f6] text-white" : "text-black"
+                        }`}
+                      >
+                        {day}
+                      </div>
+                      <div className={`h-2 w-2 rounded-full ${dotted ? "bg-[#3b82f6]" : "bg-transparent"}`} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="rounded-[24px] border border-black/8 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[15px] font-semibold text-black">Festa Andrea 🎉</div>
+                    <div className="mt-1 text-[12px] text-black/40">Imola, BO, Italia</div>
+                  </div>
+                  <div className="text-[14px] font-semibold text-black/45">21:00</div>
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-[22px] bg-black px-4 py-4 text-center text-[13px] font-semibold text-white">
-                Modifica evento
-              </div>
-              <div className="rounded-[22px] bg-black px-4 py-4 text-center text-[13px] font-semibold text-white">
-                Partecipanti
-              </div>
-            </div>
-
-            <div className="rounded-[26px] border border-black/8 bg-white p-4">
+          ) : variant === "gallery" ? (
+            <div className="space-y-3 rounded-[30px] border border-black/8 bg-white/72 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[14px] font-semibold text-black">Partecipazione</div>
-                  <div className="mt-1 text-[12px] text-black/40">Approva richieste e monitora presenze</div>
+                  <div className="text-[15px] font-semibold text-black">Disposable gallery</div>
+                  <div className="mt-1 text-[12px] text-black/40">Le foto si sbloccano al momento giusto</div>
                 </div>
-                <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">Richieste</div>
+                <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">24h</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(90,161,255,0.30),rgba(255,255,255,0.95))]" />
+                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(255,167,203,0.28),rgba(255,255,255,0.95))]" />
+                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(160,135,255,0.25),rgba(255,255,255,0.95))]" />
+                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(110,230,194,0.22),rgba(255,255,255,0.95))]" />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 rounded-[30px] border border-black/8 bg-white/72 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[15px] font-semibold text-black">Compleanno Giovanni 🎉</div>
+                  <div className="mt-1 text-[12px] text-black/40">Gestisci inviti, partecipanti e preferenze</div>
+                </div>
+                <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">Privato</div>
               </div>
 
-              <div className="mt-4 grid grid-cols-[96px_1fr] items-center gap-4">
-                <div className="flex aspect-square items-center justify-center rounded-full border-[12px] border-[#52be61] bg-white text-center">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-[22px] bg-black px-4 py-4 text-center text-[13px] font-semibold text-white">
+                  Modifica evento
+                </div>
+                <div className="rounded-[22px] bg-black px-4 py-4 text-center text-[13px] font-semibold text-white">
+                  Partecipanti
+                </div>
+              </div>
+
+              <div className="rounded-[26px] border border-black/8 bg-white p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-3xl font-semibold leading-none text-black">1</div>
-                    <div className="mt-1 text-xs font-medium text-black/45">Totale</div>
+                    <div className="text-[14px] font-semibold text-black">Partecipazione</div>
+                    <div className="mt-1 text-[12px] text-black/40">Approva richieste e monitora presenze</div>
                   </div>
+                  <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">Richieste</div>
                 </div>
 
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-black/55">Approvati</span>
-                    <span className="font-semibold text-[#52be61]">100%</span>
+                <div className="mt-4 grid grid-cols-[96px_1fr] items-center gap-4">
+                  <div className="flex aspect-square items-center justify-center rounded-full border-[12px] border-[#52be61] bg-white text-center">
+                    <div>
+                      <div className="text-3xl font-semibold leading-none text-black">1</div>
+                      <div className="mt-1 text-xs font-medium text-black/45">Totale</div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-black/55">In attesa</span>
-                    <span className="font-semibold text-[#f0a126]">0%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-black/55">Rifiutati</span>
-                    <span className="font-semibold text-[#e65858]">0%</span>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-black/55">Approvati</span>
+                      <span className="font-semibold text-[#52be61]">100%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-black/55">In attesa</span>
+                      <span className="font-semibold text-[#f0a126]">0%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-black/55">Rifiutati</span>
+                      <span className="font-semibold text-[#e65858]">0%</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <div className="rounded-[26px] border border-black/8 bg-white p-4">
-              <div className="text-[14px] font-semibold text-black">Galleria disposable</div>
-              <div className="mt-1 text-[12px] text-black/40">Le foto si sbloccano al momento giusto</div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="aspect-[0.72] rounded-[18px] bg-[linear-gradient(180deg,rgba(90,161,255,0.22),rgba(255,255,255,0.92))]" />
-                <div className="aspect-[0.72] rounded-[18px] bg-[linear-gradient(180deg,rgba(255,167,203,0.22),rgba(255,255,255,0.92))]" />
-                <div className="aspect-[0.72] rounded-[18px] bg-[linear-gradient(180deg,rgba(160,135,255,0.22),rgba(255,255,255,0.92))]" />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -157,13 +219,44 @@ function ReviewCard({ quote, name, place }: { quote: string; name: string; place
 }
 
 export default function Home() {
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY || 0);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const heroTransforms = useMemo(() => {
+    const limited = Math.min(scrollY, 700);
+    return {
+      left: {
+        transform: `translate3d(0, ${limited * 0.16}px, 0) rotate(-18deg)`,
+      },
+      center: {
+        transform: `translate3d(0, ${limited * 0.09}px, 0) rotate(13deg)`,
+      },
+      right: {
+        transform: `translate3d(0, ${limited * 0.2}px, 0) rotate(10deg)`,
+      },
+      halo: {
+        transform: `translate3d(0, ${limited * 0.08}px, 0) scale(${1 + limited * 0.00015})`,
+      },
+    };
+  }, [scrollY]);
+
   return (
     <div className="min-h-screen bg-[#f4f5fb] text-black">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,#f4f5fb_0%,#f8f3ff_36%,#edf5ff_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#f4f5fb_0%,#f7f0ff_36%,#edf5ff_100%)]" />
         <div className="absolute left-[-80px] top-[80px] h-[340px] w-[340px] rounded-full bg-[#b8d4ff]/40 blur-[110px]" />
         <div className="absolute right-[-60px] top-[220px] h-[360px] w-[360px] rounded-full bg-[#e8b8ff]/35 blur-[120px]" />
         <div className="absolute left-1/3 top-[560px] h-[320px] w-[320px] rounded-full bg-[#c9c4ff]/28 blur-[120px]" />
+        <div className="absolute left-[10%] top-[180px] h-4 w-4 rounded-full bg-[#ff82bc]/60 blur-[2px]" />
+        <div className="absolute right-[16%] top-[140px] h-5 w-5 rounded-full bg-[#7ad8ff]/55 blur-[2px]" />
+        <div className="absolute left-[72%] top-[420px] h-3 w-3 rounded-full bg-[#ffd66f]/70 blur-[1px]" />
+        <div className="absolute left-[18%] top-[560px] h-3.5 w-3.5 rounded-full bg-[#96efc9]/55 blur-[1px]" />
       </div>
 
       <main className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pb-20 pt-6 sm:px-8 lg:px-10">
@@ -195,22 +288,27 @@ export default function Home() {
           </a>
         </header>
 
-        <section className="grid items-center gap-16 pb-16 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:pt-24">
-          <div className="max-w-2xl">
+        <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-hidden pb-14 pt-14 sm:pb-20 lg:pb-24">
+          <div
+            className="absolute left-1/2 top-[12%] h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.55)_38%,rgba(255,255,255,0)_72%)] blur-[6px]"
+            style={heroTransforms.halo}
+          />
+
+          <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-center text-center">
             <div className="inline-flex items-center rounded-full border border-black/8 bg-white/62 px-4 py-1.5 text-sm text-black/50 shadow-[0_6px_18px_rgba(15,23,42,0.04)] backdrop-blur-xl">
               Per eventi privati che lasciano l’echo
             </div>
 
-            <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-[-0.06em] text-black sm:text-6xl lg:text-7xl">
-              Organizza la festa. Gestisci gli invitati. Rivivi la serata.
+            <h1 className="mt-7 text-[72px] font-semibold leading-[0.95] tracking-[-0.09em] text-black sm:text-[104px] lg:text-[148px]">
+              echo
             </h1>
 
-            <p className="mt-6 max-w-2xl text-base leading-8 text-black/48 sm:text-lg">
-              echo ti aiuta a creare eventi privati con un’esperienza semplice, moderna e mobile-first:
-              inviti, approvazioni, pagamenti e foto in stile disposable camera, tutto nello stesso posto.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-black/48 sm:text-lg">
+              Organizza la festa, gestisci gli invitati e rivivi la serata con un’esperienza più bella,
+              più chiara e un po’ più festaiola.
             </p>
 
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-4 sm:flex-row">
               <a
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
                 href="/get"
@@ -226,17 +324,26 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative mx-auto flex w-full max-w-3xl items-center justify-center">
-            <div className="relative flex w-full max-w-[760px] items-center justify-center gap-4 sm:gap-6">
-              <div className="hidden -translate-y-8 rotate-[-10deg] sm:block">
-                <PhoneMock title="Calendario eventi" subtitle="Vista chiara" accent="rgba(194,221,255,0.95)" />
-              </div>
-              <div className="z-10 scale-[1.02] sm:scale-100">
-                <PhoneMock title="La tua festa, meglio" subtitle="echo experience" accent="rgba(235,210,255,0.92)" />
-              </div>
-              <div className="hidden translate-y-10 rotate-[10deg] lg:block">
-                <PhoneMock title="Disposable moments" subtitle="Gallery unlock" accent="rgba(214,236,255,0.95)" />
-              </div>
+          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+            <div
+              className="absolute left-[6%] top-[42%] hidden origin-center sm:block"
+              style={heroTransforms.left}
+            >
+              <PhoneMock title="Calendario" subtitle="Vista chiara" accent="rgba(194,221,255,0.95)" variant="calendar" />
+            </div>
+
+            <div
+              className="absolute right-[10%] top-[14%] origin-center"
+              style={heroTransforms.center}
+            >
+              <PhoneMock title="Compleanno Giovanni 🎉" subtitle="echo experience" accent="rgba(235,210,255,0.92)" variant="party" />
+            </div>
+
+            <div
+              className="absolute right-[-2%] top-[52%] hidden origin-center xl:block"
+              style={heroTransforms.right}
+            >
+              <PhoneMock title="Disposable moments" subtitle="Gallery unlock" accent="rgba(214,236,255,0.95)" variant="gallery" />
             </div>
           </div>
         </section>
