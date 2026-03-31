@@ -198,26 +198,15 @@ export default function Home() {
             </div>
 
             <div className="relative mx-auto flex w-full max-w-[640px] items-center justify-center lg:justify-end">
-              <div className="pointer-events-none relative h-[560px] w-full sm:h-[680px]">
+              <div className="pointer-events-none relative h-[600px] w-full sm:h-[720px]">
                 <div
-                  className="absolute left-[4%] top-[18%] hidden w-[54%] sm:block"
-                  style={heroTransforms.mockupSecondary}
-                >
-                  <img
-                    src={HERO_MOCKUP_SRC}
-                    alt="Echo app preview"
-                    className="h-auto w-full object-contain opacity-90 drop-shadow-[0_30px_60px_rgba(15,23,42,0.14)]"
-                  />
-                </div>
-
-                <div
-                  className="absolute right-[0] top-[2%] w-[72%] sm:w-[76%]"
+                  className="absolute right-[0] top-[0] w-[90%] sm:w-[95%]"
                   style={heroTransforms.mockup}
                 >
                   <img
                     src={HERO_MOCKUP_SRC}
                     alt="Echo app preview"
-                    className="h-auto w-full object-contain drop-shadow-[0_45px_90px_rgba(15,23,42,0.18)]"
+                    className="h-auto w-full object-contain drop-shadow-[0_60px_120px_rgba(15,23,42,0.2)]"
                   />
                 </div>
               </div>
