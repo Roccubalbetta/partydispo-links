@@ -45,7 +45,7 @@ const reviews = [
   },
 ];
 
-const HERO_MOCKUP_SRC = "app/hero-mockup.png";
+const HERO_MOCKUP_SRC = "public/hero-mockup.png";
 
 function ReviewCard({ quote, name, place }: { quote: string; name: string; place: string }) {
   return (
