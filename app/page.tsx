@@ -2,18 +2,47 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const features = [
+const HERO_MOCKUP_SRC = "/hero-mockup.png";
+
+const featureCards = [
   {
-    title: "Inviti privati",
-    text: "Condividi l’evento con un link pulito e gestisci richieste, approvazioni e conferme in un unico flusso.",
+    eyebrow: "Inviti",
+    title: "Crea un invito che sembra davvero un evento.",
+    text: "Link privati, approvazioni e dettagli dell’evento in un flusso semplice e molto più bello della solita chat.",
+    accent: "#ff84c1",
   },
   {
-    title: "Partecipanti e pagamenti",
-    text: "Controlla presenza, quote e stato degli invitati con un’esperienza semplice, chiara e pensata per il telefono.",
+    eyebrow: "Gestione",
+    title: "Tieni tutto sotto controllo senza impazzire.",
+    text: "Partecipanti, conferme, richieste e pagamenti organizzati in un’unica esperienza pensata per il telefono.",
+    accent: "#7dbfff",
   },
   {
-    title: "Foto disposable",
-    text: "Rivivi la serata con foto in stile usa e getta, sbloccate al momento giusto per mantenere l’effetto sorpresa.",
+    eyebrow: "Memories",
+    title: "Rivivi la serata con una disposable gallery.",
+    text: "Le foto si sbloccano al momento giusto, così l’evento resta vivo anche dopo la festa.",
+    accent: "#ffd36a",
+  },
+];
+
+const miniStats = [
+  { label: "Esperienza", value: "mobile-first" },
+  { label: "Inviti", value: "privati" },
+  { label: "Foto", value: "disposable" },
+];
+
+const showcaseCards = [
+  {
+    title: "Invita solo chi vuoi tu",
+    text: "Echo è pensata per eventi privati: richieste, approvazioni e controllo completo della lista.",
+  },
+  {
+    title: "Gestisci anche colletta e conferme",
+    text: "Quando serve, puoi tenere ordinati pagamenti, quote e stato degli invitati senza uscire dal flusso dell’evento.",
+  },
+  {
+    title: "Rendi la serata più memorabile",
+    text: "Le foto non sono solo una gallery: diventano parte dell’esperienza, con un reveal più divertente e curato.",
   },
 ];
 
@@ -44,11 +73,9 @@ const reviews = [
   },
 ];
 
-const HERO_MOCKUP_SRC = "/hero-mockup.png";
-
 function ReviewCard({ quote, name, place }: { quote: string; name: string; place: string }) {
   return (
-    <div className="rounded-[28px] border border-black/8 bg-white/72 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(15,23,42,0.08)]">
+    <div className="rounded-[30px] border border-black/8 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
       <p className="text-base leading-7 text-black/72">“{quote}”</p>
       <div className="mt-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">
@@ -59,6 +86,14 @@ function ReviewCard({ quote, name, place }: { quote: string; name: string; place
           <div className="text-sm text-black/40">{place}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SectionBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="inline-flex items-center rounded-full border border-black/8 bg-white/76 px-4 py-1.5 text-sm text-black/48 shadow-[0_10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+      {children}
     </div>
   );
 }
@@ -74,22 +109,28 @@ export default function Home() {
   }, []);
 
   const heroTransforms = useMemo(() => {
-    const limited = Math.min(scrollY, 700);
+    const limited = Math.min(scrollY, 900);
     return {
       mockup: {
-        transform: `translate3d(${limited * -0.015}px, ${limited * 0.09}px, 0) rotate(${ -6 + limited * 0.004 }deg) scale(${1 + limited * 0.00006})`,
+        transform: `translate3d(${limited * -0.018}px, ${limited * 0.11}px, 0) rotate(${ -5 + limited * 0.0035 }deg) scale(${1 + limited * 0.00006})`,
       },
       glowLeft: {
-        transform: `translate3d(${-limited * 0.03}px, ${limited * 0.1}px, 0) scale(${1 + limited * 0.00008})`,
+        transform: `translate3d(${-limited * 0.028}px, ${limited * 0.08}px, 0) scale(${1 + limited * 0.0001})`,
       },
       glowRight: {
-        transform: `translate3d(${limited * 0.035}px, ${limited * 0.11}px, 0) scale(${1 + limited * 0.0001})`,
-      },
-      halo: {
-        transform: `translate3d(0, ${limited * 0.06}px, 0) scale(${1 + limited * 0.00012})`,
+        transform: `translate3d(${limited * 0.032}px, ${limited * 0.11}px, 0) scale(${1 + limited * 0.00012})`,
       },
       badgeFloat: {
-        transform: `translate3d(0, ${limited * 0.025}px, 0)`,
+        transform: `translate3d(0, ${limited * 0.02}px, 0)`,
+      },
+      cardA: {
+        transform: `translate3d(0, ${limited * 0.035}px, 0)`,
+      },
+      cardB: {
+        transform: `translate3d(0, ${limited * 0.05}px, 0)`,
+      },
+      cardC: {
+        transform: `translate3d(0, ${limited * 0.065}px, 0)`,
       },
     };
   }, [scrollY]);
@@ -97,7 +138,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#f4f5fb] text-black">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,#f4f5fb_0%,#f7f0ff_36%,#edf5ff_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#f4f5fb_0%,#f7f0ff_34%,#edf5ff_100%)]" />
         <div className="absolute left-[-80px] top-[80px] h-[340px] w-[340px] rounded-full bg-[#b8d4ff]/40 blur-[110px]" />
         <div className="absolute right-[-60px] top-[220px] h-[360px] w-[360px] rounded-full bg-[#e8b8ff]/35 blur-[120px]" />
         <div className="absolute left-1/3 top-[560px] h-[320px] w-[320px] rounded-full bg-[#c9c4ff]/28 blur-[120px]" />
@@ -109,8 +150,8 @@ export default function Home() {
         <div className="absolute left-[18%] top-[560px] h-3.5 w-3.5 rounded-full bg-[#96efc9]/55 blur-[1px]" />
       </div>
 
-      <main className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pb-20 pt-6 sm:px-8 lg:px-10">
-        <header className="flex items-center justify-between rounded-full border border-black/8 bg-white/65 px-4 py-3 shadow-[0_6px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+      <main className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pb-24 pt-6 sm:px-8 lg:px-10">
+        <header className="sticky top-4 z-40 flex items-center justify-between rounded-full border border-black/8 bg-white/68 px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">
               e
@@ -122,11 +163,11 @@ export default function Home() {
             <a href="#features" className="transition hover:text-black/85">
               Features
             </a>
+            <a href="#showcase" className="transition hover:text-black/85">
+              Experience
+            </a>
             <a href="#reviews" className="transition hover:text-black/85">
               Reviews
-            </a>
-            <a href="/privacy" className="transition hover:text-black/85">
-              Privacy
             </a>
           </nav>
 
@@ -134,89 +175,75 @@ export default function Home() {
             href="/get"
             className="inline-flex h-10 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:bg-black/90"
           >
-            Apri echo
+            Scarica l’app
           </a>
         </header>
 
-        <section className="relative overflow-hidden pb-16 pt-14 sm:pb-24 sm:pt-20 lg:pb-28 lg:pt-24">
+        <section className="relative overflow-hidden pb-20 pt-14 sm:pb-24 sm:pt-20 lg:pb-32 lg:pt-24">
           <div
-            className="absolute left-[12%] top-[18%] h-[240px] w-[240px] rounded-full bg-white/55 blur-[80px]"
-            style={heroTransforms.halo}
-          />
-          <div
-            className="absolute right-[8%] top-[10%] h-[260px] w-[260px] rounded-full bg-[#ffd6ef]/45 blur-[100px]"
-            style={heroTransforms.glowRight}
-          />
-          <div
-            className="absolute left-[4%] top-[42%] h-[220px] w-[220px] rounded-full bg-[#cfe4ff]/55 blur-[100px]"
+            className="absolute left-[10%] top-[14%] h-[260px] w-[260px] rounded-full bg-white/58 blur-[90px]"
             style={heroTransforms.glowLeft}
           />
+          <div
+            className="absolute right-[10%] top-[12%] h-[280px] w-[280px] rounded-full bg-[#ffd6ef]/42 blur-[110px]"
+            style={heroTransforms.glowRight}
+          />
 
-          <div className="relative z-20 grid items-center gap-14 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-8">
-            <div className="relative">
-              <div
-                className="inline-flex items-center rounded-full border border-black/8 bg-white/72 px-4 py-1.5 text-sm text-black/50 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl"
-                style={heroTransforms.badgeFloat}
-              >
-                Per eventi privati che lasciano l’echo
+          <div className="relative z-20 grid items-center gap-14 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-10">
+            <div className="relative max-w-2xl">
+              <div style={heroTransforms.badgeFloat}>
+                <SectionBadge>Per eventi privati che lasciano l’echo</SectionBadge>
               </div>
 
-              <h1 className="mt-6 max-w-4xl text-5xl font-semibold leading-[0.92] tracking-[-0.08em] text-black sm:text-7xl lg:text-[112px]">
-                echo
+              <h1 className="mt-7 max-w-5xl text-5xl font-semibold leading-[0.92] tracking-[-0.085em] text-black sm:text-7xl lg:text-[108px]">
+                L’app che rende le feste più belle, più semplici, più vive.
               </h1>
 
               <p className="mt-6 max-w-xl text-base leading-8 text-black/52 sm:text-lg">
-                Organizza la festa, gestisci gli invitati e rivivi la serata con un’esperienza pulita,
-                elegante e più viva, pensata per eventi che devono lasciare il segno.
-              </p>
-              <p className="mt-3 max-w-lg text-sm leading-7 text-black/38 sm:text-base">
-                Inviti privati, approvazioni, pagamenti e foto disposable nello stesso flusso.
+                Echo ti aiuta a organizzare eventi privati con inviti curati, gestione smart degli invitati,
+                pagamenti ordinati e una disposable gallery pensata per far parlare della serata anche dopo.
               </p>
 
-              <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <a
                   className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
                   href="/get"
                 >
-                  Apri echo
+                  Scarica echo
                 </a>
                 <a
-                  className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/72 px-6 text-sm font-semibold text-black transition hover:bg-white/90"
-                  href="#features"
+                  className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/76 px-6 text-sm font-semibold text-black transition hover:bg-white/90"
+                  href="#showcase"
                 >
-                  Scopri di più
+                  Guarda come funziona
                 </a>
               </div>
 
               <div className="mt-10 grid max-w-2xl gap-3 sm:grid-cols-3">
-                <div className="rounded-[26px] border border-black/8 bg-white/78 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#ff84c1]" />
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">Inviti</div>
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-black">Privati</div>
-                </div>
-                <div className="rounded-[26px] border border-black/8 bg-white/78 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#7dbfff]" />
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">Foto</div>
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-black">Disposable</div>
-                </div>
-                <div className="rounded-[26px] border border-black/8 bg-white/78 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#ffd36a]" />
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">Gestione</div>
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-black">Smart</div>
-                </div>
+                {miniStats.map((item, index) => {
+                  const accent = ["#ff84c1", "#7dbfff", "#ffd36a"][index] ?? "#ff84c1";
+                  const style = [heroTransforms.cardA, heroTransforms.cardB, heroTransforms.cardC][index];
+                  return (
+                    <div
+                      key={item.label}
+                      className="rounded-[26px] border border-black/8 bg-white/78 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5"
+                      style={style}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: accent }} />
+                        <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">{item.label}</div>
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-black">{item.value}</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="group relative mx-auto flex w-full max-w-[680px] items-center justify-center lg:justify-end">
-              <div className="pointer-events-none relative h-[600px] w-full sm:h-[720px]">
+            <div className="group relative mx-auto flex w-full max-w-[760px] items-center justify-center lg:justify-end">
+              <div className="pointer-events-none relative h-[620px] w-full sm:h-[760px]">
                 <div
-                  className="absolute right-[0] top-[0] w-[90%] sm:w-[95%]"
+                  className="absolute right-[-2%] top-[0] w-[96%] sm:w-[100%]"
                   style={heroTransforms.mockup}
                 >
                   <img
@@ -230,22 +257,57 @@ export default function Home() {
           </div>
         </section>
 
+        <section id="showcase" className="border-t border-black/8 py-16 sm:py-20">
+          <div className="max-w-2xl">
+            <SectionBadge>Designed to convert</SectionBadge>
+            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-black sm:text-5xl">
+              Una landing deve far venire voglia di scaricare l’app. Tutto qui spinge in quella direzione.
+            </h2>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-black/50 sm:text-lg">
+              Per questo il messaggio è chiaro, le schermate sono protagoniste e i punti forti dell’app si capiscono subito.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 lg:grid-cols-3">
+            {showcaseCards.map((card, index) => {
+              const accents = ["from-[#ffd6ef]/55", "from-[#d7ebff]/70", "from-[#fff0c8]/70"];
+              return (
+                <div
+                  key={card.title}
+                  className="relative overflow-hidden rounded-[32px] border border-black/8 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(15,23,42,0.08)]"
+                >
+                  <div className={`absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accents[index] ?? accents[0]} to-transparent`} />
+                  <div className="relative z-10">
+                    <div className="h-2.5 w-2.5 rounded-full bg-black/70" />
+                    <h3 className="mt-4 text-2xl font-semibold tracking-tight text-black">{card.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-black/50">{card.text}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         <section id="features" className="border-t border-black/8 py-16 sm:py-20">
           <div className="max-w-2xl">
-            <div className="text-sm uppercase tracking-[0.22em] text-black/28">Features</div>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-black sm:text-4xl">
+            <SectionBadge>Features</SectionBadge>
+            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-black sm:text-4xl">
               Tutto quello che serve per gestire un evento privato, senza attriti.
             </h2>
           </div>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {features.map((feature) => (
+            {featureCards.map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-[30px] border border-black/8 bg-white/72 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(15,23,42,0.08)]"
+                className="rounded-[30px] border border-black/8 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(15,23,42,0.08)]"
               >
-                <div className="text-lg font-semibold text-black">{feature.title}</div>
-                <p className="mt-3 text-sm leading-7 text-black/50">{feature.text}</p>
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: feature.accent }} />
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">{feature.eyebrow}</div>
+                </div>
+                <div className="mt-4 text-2xl font-semibold leading-tight tracking-tight text-black">{feature.title}</div>
+                <p className="mt-4 text-sm leading-7 text-black/50">{feature.text}</p>
               </div>
             ))}
           </div>
@@ -253,8 +315,8 @@ export default function Home() {
 
         <section id="reviews" className="border-t border-black/8 py-16 sm:py-20">
           <div className="max-w-2xl">
-            <div className="text-sm uppercase tracking-[0.22em] text-black/28">Reviews</div>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-black sm:text-4xl">
+            <SectionBadge>Social proof</SectionBadge>
+            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-black sm:text-4xl">
               Pensata per chi organizza serate che devono funzionare davvero.
             </h2>
           </div>
@@ -267,28 +329,26 @@ export default function Home() {
         </section>
 
         <section className="border-t border-black/8 py-16 sm:py-20">
-          <div className="rounded-[36px] border border-black/8 bg-white/70 px-6 py-10 text-center shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl sm:px-10 sm:py-14">
-            <div className="inline-flex items-center rounded-full border border-black/8 bg-white/70 px-4 py-1.5 text-sm text-black/50">
-              echo
-            </div>
+          <div className="rounded-[38px] border border-black/8 bg-white/76 px-6 py-10 text-center shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur-xl sm:px-10 sm:py-14">
+            <SectionBadge>Download echo</SectionBadge>
             <h2 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold tracking-tight text-black sm:text-5xl">
-              Crea eventi privati con un’esperienza più bella, più chiara e più tua.
+              La prossima festa che organizzi può sembrare già un ricordo prima ancora di iniziare.
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-black/50">
-              Dall’invito alla gallery, echo rende ogni passaggio più semplice da gestire e più bello da vivere.
+              Scarica echo e trasforma inviti, gestione e gallery in un’esperienza più curata, più condivisibile e molto più memorabile.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a
                 href="/get"
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
               >
-                Apri echo
+                Scarica l’app
               </a>
               <a
-                href="/privacy"
-                className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/70 px-6 text-sm font-semibold text-black transition hover:bg-white/85"
+                href="#features"
+                className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/76 px-6 text-sm font-semibold text-black transition hover:bg-white/90"
               >
-                Privacy
+                Esplora le feature
               </a>
             </div>
           </div>
@@ -301,7 +361,7 @@ export default function Home() {
               Privacy
             </a>
             <a href="/get" className="transition hover:text-black/70">
-              Apri echo
+              Scarica echo
             </a>
           </div>
         </footer>
