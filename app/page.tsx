@@ -78,16 +78,19 @@ export default function Home() {
     const limited = Math.min(scrollY, 700);
     return {
       mockup: {
-        transform: `translate3d(0, ${limited * 0.12}px, 0) scale(${1 + limited * 0.00008})`,
+        transform: `translate3d(0, ${limited * 0.08}px, 0) rotate(-6deg) scale(${1 + limited * 0.00004})`,
+      },
+      mockupSecondary: {
+        transform: `translate3d(0, ${limited * 0.13}px, 0) rotate(8deg) scale(${1 + limited * 0.00003})`,
       },
       glowLeft: {
-        transform: `translate3d(${-limited * 0.03}px, ${limited * 0.1}px, 0)`,
+        transform: `translate3d(${-limited * 0.025}px, ${limited * 0.08}px, 0)`,
       },
       glowRight: {
-        transform: `translate3d(${limited * 0.04}px, ${limited * 0.14}px, 0)`,
+        transform: `translate3d(${limited * 0.03}px, ${limited * 0.1}px, 0)`,
       },
       halo: {
-        transform: `translate3d(0, ${limited * 0.08}px, 0) scale(${1 + limited * 0.00015})`,
+        transform: `translate3d(0, ${limited * 0.05}px, 0) scale(${1 + limited * 0.00008})`,
       },
     };
   }, [scrollY]);
@@ -134,58 +137,90 @@ export default function Home() {
           </a>
         </header>
 
-        <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-hidden pb-14 pt-14 sm:pb-20 lg:pb-24">
+        <section className="relative overflow-hidden pb-16 pt-14 sm:pb-24 sm:pt-20 lg:pb-28 lg:pt-24">
           <div
-            className="absolute left-1/2 top-[12%] h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.55)_38%,rgba(255,255,255,0)_72%)] blur-[6px]"
+            className="absolute left-[12%] top-[18%] h-[240px] w-[240px] rounded-full bg-white/55 blur-[80px]"
             style={heroTransforms.halo}
           />
+          <div
+            className="absolute right-[8%] top-[10%] h-[260px] w-[260px] rounded-full bg-[#ffd6ef]/45 blur-[100px]"
+            style={heroTransforms.glowRight}
+          />
+          <div
+            className="absolute left-[4%] top-[42%] h-[220px] w-[220px] rounded-full bg-[#cfe4ff]/55 blur-[100px]"
+            style={heroTransforms.glowLeft}
+          />
 
-          <div className="relative z-20 mx-auto mt-[34vh] flex max-w-4xl flex-col items-center text-center sm:mt-[40vh] lg:mt-[44vh]">
-            <div className="inline-flex items-center rounded-full border border-black/8 bg-white/62 px-4 py-1.5 text-sm text-black/50 shadow-[0_6px_18px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-              Per eventi privati che lasciano l’echo
+          <div className="relative z-20 grid items-center gap-14 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-8">
+            <div className="relative">
+              <div className="inline-flex items-center rounded-full border border-black/8 bg-white/72 px-4 py-1.5 text-sm text-black/50 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+                Per eventi privati che lasciano l’echo
+              </div>
+
+              <h1 className="mt-6 max-w-4xl text-5xl font-semibold leading-[0.92] tracking-[-0.08em] text-black sm:text-7xl lg:text-[112px]">
+                echo
+              </h1>
+
+              <p className="mt-6 max-w-xl text-base leading-8 text-black/50 sm:text-lg">
+                Organizza la festa, gestisci gli invitati e rivivi la serata con un’esperienza pulita,
+                elegante e un po’ più festaiola.
+              </p>
+
+              <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+                <a
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
+                  href="/get"
+                >
+                  Apri echo
+                </a>
+                <a
+                  className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/72 px-6 text-sm font-semibold text-black transition hover:bg-white/90"
+                  href="#features"
+                >
+                  Scopri di più
+                </a>
+              </div>
+
+              <div className="mt-10 grid max-w-xl gap-3 sm:grid-cols-3">
+                <div className="rounded-[24px] border border-black/8 bg-white/72 px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">Inviti</div>
+                  <div className="mt-2 text-lg font-semibold text-black">Privati</div>
+                </div>
+                <div className="rounded-[24px] border border-black/8 bg-white/72 px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">Foto</div>
+                  <div className="mt-2 text-lg font-semibold text-black">Disposable</div>
+                </div>
+                <div className="rounded-[24px] border border-black/8 bg-white/72 px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-black/35">Gestione</div>
+                  <div className="mt-2 text-lg font-semibold text-black">Smart</div>
+                </div>
+              </div>
             </div>
 
-            <h1 className="mt-7 text-[72px] font-semibold leading-[0.95] tracking-[-0.09em] text-black sm:text-[104px] lg:text-[148px]">
-              echo
-            </h1>
+            <div className="relative mx-auto flex w-full max-w-[640px] items-center justify-center lg:justify-end">
+              <div className="pointer-events-none relative h-[560px] w-full sm:h-[680px]">
+                <div
+                  className="absolute left-[4%] top-[18%] hidden w-[54%] sm:block"
+                  style={heroTransforms.mockupSecondary}
+                >
+                  <img
+                    src={HERO_MOCKUP_SRC}
+                    alt="Echo app preview"
+                    className="h-auto w-full object-contain opacity-90 drop-shadow-[0_30px_60px_rgba(15,23,42,0.14)]"
+                  />
+                </div>
 
-            <p className="mt-5 max-w-2xl text-base leading-8 text-black/48 sm:text-lg">
-              Organizza la festa, gestisci gli invitati e rivivi la serata con un’esperienza più bella,
-              più chiara e un po’ più festaiola.
-            </p>
-
-            <div className="mt-9 flex flex-col gap-4 sm:flex-row">
-              <a
-                className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
-                href="/get"
-              >
-                Apri echo
-              </a>
-              <a
-                className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/62 px-6 text-sm font-semibold text-black transition hover:bg-white/80"
-                href="#features"
-              >
-                Scopri di più
-              </a>
-            </div>
-          </div>
-
-          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-            <div
-              className="absolute left-[10%] top-[24%] h-[260px] w-[260px] rounded-full bg-[#8fc8ff]/28 blur-[90px]"
-              style={heroTransforms.glowLeft}
-            />
-            <div
-              className="absolute right-[8%] top-[30%] h-[300px] w-[300px] rounded-full bg-[#f0a9ff]/22 blur-[110px]"
-              style={heroTransforms.glowRight}
-            />
-
-            <div className="absolute left-1/2 top-[16%] w-[min(94vw,780px)] -translate-x-1/2" style={heroTransforms.mockup}>
-              <img
-                src={HERO_MOCKUP_SRC}
-                alt="Echo app preview"
-                className="h-auto w-full object-contain drop-shadow-[0_45px_80px_rgba(15,23,42,0.20)]"
-              />
+                <div
+                  className="absolute right-[0] top-[2%] w-[72%] sm:w-[76%]"
+                  style={heroTransforms.mockup}
+                >
+                  <img
+                    src={HERO_MOCKUP_SRC}
+                    alt="Echo app preview"
+                    className="h-auto w-full object-contain drop-shadow-[0_45px_90px_rgba(15,23,42,0.18)]"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </section>
