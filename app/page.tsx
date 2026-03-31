@@ -45,161 +45,7 @@ const reviews = [
   },
 ];
 
-function PhoneMock({
-  title,
-  subtitle,
-  accent,
-  variant = "party",
-}: {
-  title: string;
-  subtitle: string;
-  accent: string;
-  variant?: "party" | "calendar" | "gallery";
-}) {
-  return (
-    <div className="relative h-[560px] w-[276px] rounded-[46px] border border-black/10 bg-[#1b1b1f] p-[10px] shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
-      <div className="relative h-full overflow-hidden rounded-[38px] bg-[#eef1fb]">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(135deg, rgba(217,232,255,0.92) 0%, rgba(244,236,255,0.88) 52%, ${accent} 100%)`,
-          }}
-        />
-
-        <div className="absolute left-1/2 top-3 z-20 h-7 w-32 -translate-x-1/2 rounded-full bg-black/95" />
-
-        <div className="relative z-10 flex items-center justify-between px-5 pt-14 text-[11px] font-medium text-black/55">
-          <span>9:41</span>
-          <span>echo</span>
-        </div>
-
-        <div className="relative z-10 px-5 pt-5 text-left">
-          <div className="inline-flex items-center rounded-full border border-black/8 bg-white/55 px-3 py-1 text-[10px] font-semibold text-black/55 backdrop-blur-xl">
-            {subtitle}
-          </div>
-          <h3 className="mt-4 max-w-[190px] text-[34px] font-semibold leading-[1.02] tracking-[-0.05em] text-black">
-            {title}
-          </h3>
-          <p className="mt-3 max-w-[210px] text-[15px] leading-6 text-black/45">
-            Gestisci eventi, invitati e momenti della serata con un’esperienza pulita e mobile-first.
-          </p>
-        </div>
-
-        <div className="relative z-10 mt-7 px-4 pb-4">
-          {variant === "calendar" ? (
-            <div className="space-y-3 rounded-[30px] border border-black/8 bg-white/72 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-              <div className="flex items-center justify-between text-black">
-                <button className="text-xl leading-none">‹</button>
-                <div className="text-[18px] font-semibold">Marzo 2026</div>
-                <button className="text-xl leading-none">›</button>
-              </div>
-              <div className="grid grid-cols-7 gap-y-4 text-center text-[12px] font-medium text-black/38">
-                {['L','M','M','G','V','S','D'].map((d) => (
-                  <div key={d}>{d}</div>
-                ))}
-                {Array.from({ length: 31 }).map((_, i) => {
-                  const day = i + 1;
-                  const active = day === 24;
-                  const dotted = day === 24 || day === 28 || day === 30;
-                  return (
-                    <div key={day} className="flex flex-col items-center gap-1 text-black">
-                      <div
-                        className={`flex h-10 w-10 items-center justify-center rounded-full text-[16px] font-semibold ${
-                          active ? "bg-[#3b82f6] text-white" : "text-black"
-                        }`}
-                      >
-                        {day}
-                      </div>
-                      <div className={`h-2 w-2 rounded-full ${dotted ? "bg-[#3b82f6]" : "bg-transparent"}`} />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="rounded-[24px] border border-black/8 bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[15px] font-semibold text-black">Festa Andrea 🎉</div>
-                    <div className="mt-1 text-[12px] text-black/40">Imola, BO, Italia</div>
-                  </div>
-                  <div className="text-[14px] font-semibold text-black/45">21:00</div>
-                </div>
-              </div>
-            </div>
-          ) : variant === "gallery" ? (
-            <div className="space-y-3 rounded-[30px] border border-black/8 bg-white/72 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[15px] font-semibold text-black">Disposable gallery</div>
-                  <div className="mt-1 text-[12px] text-black/40">Le foto si sbloccano al momento giusto</div>
-                </div>
-                <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">24h</div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(90,161,255,0.30),rgba(255,255,255,0.95))]" />
-                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(255,167,203,0.28),rgba(255,255,255,0.95))]" />
-                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(160,135,255,0.25),rgba(255,255,255,0.95))]" />
-                <div className="aspect-[0.72] rounded-[20px] bg-[linear-gradient(180deg,rgba(110,230,194,0.22),rgba(255,255,255,0.95))]" />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3 rounded-[30px] border border-black/8 bg-white/72 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[15px] font-semibold text-black">Compleanno Giovanni 🎉</div>
-                  <div className="mt-1 text-[12px] text-black/40">Gestisci inviti, partecipanti e preferenze</div>
-                </div>
-                <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">Privato</div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-[22px] bg-black px-4 py-4 text-center text-[13px] font-semibold text-white">
-                  Modifica evento
-                </div>
-                <div className="rounded-[22px] bg-black px-4 py-4 text-center text-[13px] font-semibold text-white">
-                  Partecipanti
-                </div>
-              </div>
-
-              <div className="rounded-[26px] border border-black/8 bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[14px] font-semibold text-black">Partecipazione</div>
-                    <div className="mt-1 text-[12px] text-black/40">Approva richieste e monitora presenze</div>
-                  </div>
-                  <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">Richieste</div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-[96px_1fr] items-center gap-4">
-                  <div className="flex aspect-square items-center justify-center rounded-full border-[12px] border-[#52be61] bg-white text-center">
-                    <div>
-                      <div className="text-3xl font-semibold leading-none text-black">1</div>
-                      <div className="mt-1 text-xs font-medium text-black/45">Totale</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-black/55">Approvati</span>
-                      <span className="font-semibold text-[#52be61]">100%</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-black/55">In attesa</span>
-                      <span className="font-semibold text-[#f0a126]">0%</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-black/55">Rifiutati</span>
-                      <span className="font-semibold text-[#e65858]">0%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+const HERO_MOCKUP_SRC = "/hero-mockup.png";
 
 function ReviewCard({ quote, name, place }: { quote: string; name: string; place: string }) {
   return (
@@ -231,14 +77,14 @@ export default function Home() {
   const heroTransforms = useMemo(() => {
     const limited = Math.min(scrollY, 700);
     return {
-      left: {
-        transform: `translate3d(0, ${limited * 0.16}px, 0) rotate(-18deg)`,
+      mockup: {
+        transform: `translate3d(0, ${limited * 0.12}px, 0) scale(${1 + limited * 0.00008})`,
       },
-      center: {
-        transform: `translate3d(0, ${limited * 0.09}px, 0) rotate(13deg)`,
+      glowLeft: {
+        transform: `translate3d(${-limited * 0.03}px, ${limited * 0.1}px, 0)`,
       },
-      right: {
-        transform: `translate3d(0, ${limited * 0.2}px, 0) rotate(10deg)`,
+      glowRight: {
+        transform: `translate3d(${limited * 0.04}px, ${limited * 0.14}px, 0)`,
       },
       halo: {
         transform: `translate3d(0, ${limited * 0.08}px, 0) scale(${1 + limited * 0.00015})`,
@@ -294,7 +140,7 @@ export default function Home() {
             style={heroTransforms.halo}
           />
 
-          <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-center text-center">
+          <div className="relative z-20 mx-auto mt-[34vh] flex max-w-4xl flex-col items-center text-center sm:mt-[40vh] lg:mt-[44vh]">
             <div className="inline-flex items-center rounded-full border border-black/8 bg-white/62 px-4 py-1.5 text-sm text-black/50 shadow-[0_6px_18px_rgba(15,23,42,0.04)] backdrop-blur-xl">
               Per eventi privati che lasciano l’echo
             </div>
@@ -326,24 +172,20 @@ export default function Home() {
 
           <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
             <div
-              className="absolute left-[6%] top-[42%] hidden origin-center sm:block"
-              style={heroTransforms.left}
-            >
-              <PhoneMock title="Calendario" subtitle="Vista chiara" accent="rgba(194,221,255,0.95)" variant="calendar" />
-            </div>
-
+              className="absolute left-[10%] top-[24%] h-[260px] w-[260px] rounded-full bg-[#8fc8ff]/28 blur-[90px]"
+              style={heroTransforms.glowLeft}
+            />
             <div
-              className="absolute right-[10%] top-[14%] origin-center"
-              style={heroTransforms.center}
-            >
-              <PhoneMock title="Compleanno Giovanni 🎉" subtitle="echo experience" accent="rgba(235,210,255,0.92)" variant="party" />
-            </div>
+              className="absolute right-[8%] top-[30%] h-[300px] w-[300px] rounded-full bg-[#f0a9ff]/22 blur-[110px]"
+              style={heroTransforms.glowRight}
+            />
 
-            <div
-              className="absolute right-[-2%] top-[52%] hidden origin-center xl:block"
-              style={heroTransforms.right}
-            >
-              <PhoneMock title="Disposable moments" subtitle="Gallery unlock" accent="rgba(214,236,255,0.95)" variant="gallery" />
+            <div className="absolute left-1/2 top-[16%] w-[min(94vw,780px)] -translate-x-1/2" style={heroTransforms.mockup}>
+              <img
+                src={HERO_MOCKUP_SRC}
+                alt="Echo app preview"
+                className="h-auto w-full object-contain drop-shadow-[0_45px_80px_rgba(15,23,42,0.20)]"
+              />
             </div>
           </div>
         </section>
