@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const HERO_MOCKUP_SRC = "/hero-mockup.png";
 
@@ -90,7 +90,7 @@ function ReviewCard({ quote, name, place }: { quote: string; name: string; place
   );
 }
 
-function SectionBadge({ children }: { children: React.ReactNode }) {
+function SectionBadge({ children }: { children: ReactNode }) {
   return (
     <div className="inline-flex items-center rounded-full border border-black/8 bg-white/76 px-4 py-1.5 text-sm text-black/48 shadow-[0_10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
       {children}
@@ -144,14 +144,14 @@ export default function Home() {
         <div className="absolute left-1/3 top-[560px] h-[320px] w-[320px] rounded-full bg-[#c9c4ff]/28 blur-[120px]" />
         <div className="absolute left-[72%] top-[70px] h-[240px] w-[240px] rounded-full bg-[#ffd7a8]/22 blur-[100px]" />
         <div className="absolute left-[6%] top-[520px] h-[260px] w-[260px] rounded-full bg-[#b8ffe2]/18 blur-[110px]" />
-        <div className="absolute left-[10%] top-[180px] h-4 w-4 rounded-full bg-[#ff82bc]/60 blur-[2px]" />
-        <div className="absolute right-[16%] top-[140px] h-5 w-5 rounded-full bg-[#7ad8ff]/55 blur-[2px]" />
-        <div className="absolute left-[72%] top-[420px] h-3 w-3 rounded-full bg-[#ffd66f]/70 blur-[1px]" />
-        <div className="absolute left-[18%] top-[560px] h-3.5 w-3.5 rounded-full bg-[#96efc9]/55 blur-[1px]" />
+        <div className="absolute left-[10%] top-[180px] h-4 w-4 rounded-full bg-[#ff82bc]/60 blur-[2px] animate-float-slow" />
+        <div className="absolute right-[16%] top-[140px] h-5 w-5 rounded-full bg-[#7ad8ff]/55 blur-[2px] animate-float-medium" />
+        <div className="absolute left-[72%] top-[420px] h-3 w-3 rounded-full bg-[#ffd66f]/70 blur-[1px] animate-float-fast" />
+        <div className="absolute left-[18%] top-[560px] h-3.5 w-3.5 rounded-full bg-[#96efc9]/55 blur-[1px] animate-float-medium" />
       </div>
 
       <main className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pb-24 pt-6 sm:px-8 lg:px-10">
-        <header className="sticky top-4 z-40 flex items-center justify-between rounded-full border border-black/8 bg-white/68 px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <header className="sticky top-4 z-40 flex items-center justify-between rounded-full border border-black/8 bg-white/68 px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl animate-fade-up">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">
               e
@@ -190,7 +190,7 @@ export default function Home() {
           />
 
           <div className="relative z-20 grid items-center gap-14 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-10">
-            <div className="relative max-w-2xl">
+            <div className="relative max-w-2xl animate-fade-up-delay-1">
               <div style={heroTransforms.badgeFloat}>
                 <SectionBadge>Per eventi privati che lasciano l’echo</SectionBadge>
               </div>
@@ -206,13 +206,13 @@ export default function Home() {
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <a
-                  className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition duration-300 hover:bg-black/90 hover:-translate-y-0.5 animate-soft-breathe"
                   href="/get"
                 >
                   Scarica echo
                 </a>
                 <a
-                  className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/76 px-6 text-sm font-semibold text-black transition hover:bg-white/90"
+                  className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white/76 px-6 text-sm font-semibold text-black transition duration-300 hover:bg-white/90 hover:-translate-y-0.5"
                   href="#showcase"
                 >
                   Guarda come funziona
@@ -226,7 +226,7 @@ export default function Home() {
                   return (
                     <div
                       key={item.label}
-                      className="rounded-[26px] border border-black/8 bg-white/78 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5"
+                      className="rounded-[26px] border border-black/8 bg-white/78 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(15,23,42,0.08)] animate-fade-up-stagger"
                       style={style}
                     >
                       <div className="flex items-center gap-2">
@@ -240,7 +240,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative mx-auto flex w-full max-w-[760px] items-center justify-center lg:justify-end">
+            <div className="group relative mx-auto flex w-full max-w-[760px] items-center justify-center lg:justify-end animate-fade-up-delay-2">
               <div className="pointer-events-none relative h-[620px] w-full sm:h-[760px]">
                 <div
                   className="absolute right-[-2%] top-[0] w-[96%] sm:w-[100%]"
@@ -249,7 +249,7 @@ export default function Home() {
                   <img
                     src={HERO_MOCKUP_SRC}
                     alt="Echo app preview"
-                    className="h-auto w-full object-contain drop-shadow-[0_60px_120px_rgba(15,23,42,0.2)] transition duration-500 group-hover:-translate-y-1 group-hover:rotate-[1deg]"
+                    className="h-auto w-full object-contain drop-shadow-[0_60px_120px_rgba(15,23,42,0.2)] transition duration-500 group-hover:-translate-y-1 group-hover:rotate-[1deg] animate-mockup-drift"
                   />
                 </div>
               </div>
@@ -274,9 +274,9 @@ export default function Home() {
               return (
                 <div
                   key={card.title}
-                  className="relative overflow-hidden rounded-[32px] border border-black/8 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(15,23,42,0.08)]"
+                  className="relative overflow-hidden rounded-[32px] border border-black/8 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(15,23,42,0.08)] animate-fade-up-stagger"
                 >
-                  <div className={`absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accents[index] ?? accents[0]} to-transparent`} />
+                  <div className={`absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accents[index] ?? accents[0]} to-transparent animate-sheen-slow`} />
                   <div className="relative z-10">
                     <div className="h-2.5 w-2.5 rounded-full bg-black/70" />
                     <h3 className="mt-4 text-2xl font-semibold tracking-tight text-black">{card.title}</h3>
@@ -300,7 +300,7 @@ export default function Home() {
             {featureCards.map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-[30px] border border-black/8 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(15,23,42,0.08)]"
+                className="rounded-[30px] border border-black/8 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(15,23,42,0.08)] animate-fade-up-stagger"
               >
                 <div className="flex items-center gap-2">
                   <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: feature.accent }} />
@@ -323,13 +323,15 @@ export default function Home() {
 
           <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {reviews.map((review) => (
-              <ReviewCard key={`${review.name}-${review.place}`} {...review} />
+              <div key={`${review.name}-${review.place}`} className="animate-fade-up-stagger">
+                <ReviewCard {...review} />
+              </div>
             ))}
           </div>
         </section>
 
         <section className="border-t border-black/8 py-16 sm:py-20">
-          <div className="rounded-[38px] border border-black/8 bg-white/76 px-6 py-10 text-center shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur-xl sm:px-10 sm:py-14">
+          <div className="rounded-[38px] border border-black/8 bg-white/76 px-6 py-10 text-center shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur-xl sm:px-10 sm:py-14 animate-fade-up-delay-1">
             <SectionBadge>Download echo</SectionBadge>
             <h2 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold tracking-tight text-black sm:text-5xl">
               La prossima festa che organizzi può sembrare già un ricordo prima ancora di iniziare.
@@ -365,6 +367,100 @@ export default function Home() {
             </a>
           </div>
         </footer>
+        <style jsx global>{`
+          @keyframes fadeUp {
+            from {
+              opacity: 0;
+              transform: translate3d(0, 20px, 0);
+            }
+            to {
+              opacity: 1;
+              transform: translate3d(0, 0, 0);
+            }
+          }
+
+          @keyframes floatSlow {
+            0%, 100% { transform: translate3d(0, 0, 0); }
+            50% { transform: translate3d(0, -10px, 0); }
+          }
+
+          @keyframes floatMedium {
+            0%, 100% { transform: translate3d(0, 0, 0); }
+            50% { transform: translate3d(0, -14px, 0); }
+          }
+
+          @keyframes floatFast {
+            0%, 100% { transform: translate3d(0, 0, 0); }
+            50% { transform: translate3d(0, -8px, 0); }
+          }
+
+          @keyframes softBreathe {
+            0%, 100% {
+              box-shadow: 0 0 0 rgba(0,0,0,0.0), 0 10px 24px rgba(15,23,42,0.10);
+            }
+            50% {
+              box-shadow: 0 0 0 8px rgba(0,0,0,0.02), 0 18px 34px rgba(15,23,42,0.16);
+            }
+          }
+
+          @keyframes mockupDrift {
+            0%, 100% {
+              transform: translate3d(0, 0, 0) rotate(0deg);
+            }
+            50% {
+              transform: translate3d(0, -8px, 0) rotate(0.8deg);
+            }
+          }
+
+          @keyframes sheenSlow {
+            0%, 100% {
+              opacity: 0.82;
+            }
+            50% {
+              opacity: 1;
+            }
+          }
+
+          .animate-fade-up {
+            animation: fadeUp 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+
+          .animate-fade-up-delay-1 {
+            animation: fadeUp 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+
+          .animate-fade-up-delay-2 {
+            animation: fadeUp 1000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+
+          .animate-fade-up-stagger {
+            animation: fadeUp 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+
+          .animate-float-slow {
+            animation: floatSlow 7s ease-in-out infinite;
+          }
+
+          .animate-float-medium {
+            animation: floatMedium 5.8s ease-in-out infinite;
+          }
+
+          .animate-float-fast {
+            animation: floatFast 4.4s ease-in-out infinite;
+          }
+
+          .animate-soft-breathe {
+            animation: softBreathe 3.8s ease-in-out infinite;
+          }
+
+          .animate-mockup-drift {
+            animation: mockupDrift 6.5s ease-in-out infinite;
+          }
+
+          .animate-sheen-slow {
+            animation: sheenSlow 4.8s ease-in-out infinite;
+          }
+        `}</style>
       </main>
     </div>
   );
