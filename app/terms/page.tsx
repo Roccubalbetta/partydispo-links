@@ -56,7 +56,7 @@ const linkStyle: React.CSSProperties = {
 
 export default function TermsOfUsePage() {
   const lastUpdated = "14 aprile 2026";
-  const contactEmail = "echo.partydispo.app@gmail.com";
+  const contactEmail = "partydispo.app@gmail.com";
 
   return (
     <main
