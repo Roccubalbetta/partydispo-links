@@ -3,10 +3,13 @@
 
 import { useMemo } from "react";
 
-const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
-const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
+const IOS_APP_STORE_URL =
+  "https://apps.apple.com/it/app/echo-events/id6759982492";
 
-// Deep link (utile se l’utente ha già l’app installata)
+const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.partydispo.app";
+
+// Deep link (utile se l'utente ha già l'app installata)
 const DEEPLINK_BASE = process.env.NEXT_PUBLIC_APP_DEEPLINK_BASE || "echo://";
 
 function detectPlatform(ua: string) {

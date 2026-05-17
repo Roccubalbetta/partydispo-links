@@ -193,9 +193,11 @@ function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey
   return Array.from(set);
 }
 
-const IOS_APP_STORE_URL = process.env.NEXT_PUBLIC_IOS_APP_STORE_URL || "";
-const ANDROID_PLAY_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_PLAY_STORE_URL || "";
+const IOS_APP_STORE_URL =
+  "https://apps.apple.com/it/app/echo-events/id6759982492";
 
+const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.partydispo.app";
 function fmtDay(dateIso: string | null) {
   if (!dateIso) return null;
 
@@ -420,20 +422,41 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   }, [step, rsvpStorageKey]);
 
   const onGetApp = () => {
-    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
-    const isAndroid = /Android/i.test(ua);
-    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    if (typeof window === "undefined") return;
+  
+    const ua = navigator.userAgent || "";
 
-    if (isIOS && IOS_APP_STORE_URL) {
-      window.location.href = IOS_APP_STORE_URL;
-      return;
-    }
-    if (isAndroid && ANDROID_PLAY_STORE_URL) {
-      window.location.href = ANDROID_PLAY_STORE_URL;
-      return;
-    }
+// iPhone / iPod (iPad esclusi: l'app non è disponibile su iPad)
+const isIPhone = /iphone|ipod/i.test(ua);
 
-    setErrorText("L’app non è ancora disponibile sugli store. Riprova più avanti.");
+// Android (inclusi Huawei: anche i Huawei recenti senza Google Play
+// hanno "Android" nello UA, li mandiamo comunque sul Play Store)
+const isAndroid = /android/i.test(ua);
+
+// iPad: UA può essere "iPad" oppure "Macintosh" + touch (iPadOS 13+)
+const isIPad =
+  /ipad/i.test(ua) ||
+  (/macintosh/i.test(ua) && (navigator.maxTouchPoints ?? 0) > 1);
+
+let target: string;
+
+if (isIPhone) {
+  target = IOS_APP_STORE_URL;
+} else if (isAndroid) {
+  target = ANDROID_PLAY_STORE_URL;
+} else if (isIPad) {
+  // iPad non supportato: mandiamo a una landing che spieghi
+  target = "https://echo-app.it/scarica";
+} else {
+  // Desktop o dispositivo non riconosciuto
+  target = "https://echo-app.it/scarica";
+}
+  
+    try {
+      window.location.assign(target);
+    } catch {
+      window.location.href = target;
+    }
   };
 
   useEffect(() => {
