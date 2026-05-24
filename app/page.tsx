@@ -11,19 +11,20 @@ const ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.partydispo.app";
 
 
-const STORE_URL = IOS_APP_STORE_URL;
 
-const getStoreUrl = () => {
-  if (typeof window === "undefined") return IOS_APP_STORE_URL;
+// Store URL logic: Android always gets Play Store, iOS gets App Store, never mismatch on SSR
+const [storeUrl, setStoreUrl] = useState(ANDROID_PLAY_STORE_URL);
 
+useEffect(() => {
   const ua = navigator.userAgent || navigator.vendor || "";
 
-  if (/android/i.test(ua)) {
-    return ANDROID_PLAY_STORE_URL;
+  if (/iPad|iPhone|iPod/i.test(ua)) {
+    setStoreUrl(IOS_APP_STORE_URL);
+    return;
   }
 
-  return IOS_APP_STORE_URL;
-};
+  setStoreUrl(ANDROID_PLAY_STORE_URL);
+}, []);
 
 const featureCards = [
   {
@@ -197,7 +198,7 @@ export default function Home() {
           </nav>
 
           <a
-            href={getStoreUrl()}
+            href={storeUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-10 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:bg-black/90"
@@ -234,7 +235,7 @@ export default function Home() {
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <a
                   className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition duration-300 hover:bg-black/90 hover:-translate-y-0.5 animate-soft-breathe"
-                  href={getStoreUrl()}
+                  href={storeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -370,7 +371,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a
-                href={getStoreUrl()}
+                href={storeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
@@ -394,7 +395,7 @@ export default function Home() {
               Privacy
             </a>
             <a
-              href={getStoreUrl()}
+              href={storeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="transition hover:text-black/70"
