@@ -34,9 +34,9 @@ const featureCards = [
 ];
 
 const miniStats = [
-  { label: "Esperienza", value: "mobile-first" },
-  { label: "Inviti", value: "privati" },
-  { label: "Foto", value: "disposable" },
+  { label: "Esperienza", value: "meno stressante e più memorabile" },
+  { label: "Inviti e Spesa", value: "gestiti con un click" },
+  { label: "Foto", value: "immortala il momento con un tocco vintage" },
 ];
 
 const showcaseCards = [
