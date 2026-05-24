@@ -10,22 +10,6 @@ const IOS_APP_STORE_URL =
 const ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.partydispo.app";
 
-
-
-// Store URL logic: Android always gets Play Store, iOS gets App Store, never mismatch on SSR
-const [storeUrl, setStoreUrl] = useState(ANDROID_PLAY_STORE_URL);
-
-useEffect(() => {
-  const ua = navigator.userAgent || navigator.vendor || "";
-
-  if (/iPad|iPhone|iPod/i.test(ua)) {
-    setStoreUrl(IOS_APP_STORE_URL);
-    return;
-  }
-
-  setStoreUrl(ANDROID_PLAY_STORE_URL);
-}, []);
-
 const featureCards = [
   {
     eyebrow: "Inviti",
@@ -122,6 +106,21 @@ function SectionBadge({ children }: { children: ReactNode }) {
 
 export default function Home() {
   const [scrollY, setScrollY] = useState(0);
+
+  // Store URL logic: default Play Store (Android/desktop), iOS gets App Store.
+  // Detection runs client-side inside the component so it actually updates the UI.
+  const [storeUrl, setStoreUrl] = useState(ANDROID_PLAY_STORE_URL);
+
+  useEffect(() => {
+    const ua = navigator.userAgent || navigator.vendor || "";
+
+    const isIOS =
+      /iPad|iPhone|iPod/i.test(ua) ||
+      // iPadOS 13+ si presenta come "Macintosh": lo distinguo dal supporto touch
+      (/Macintosh/i.test(ua) && typeof document !== "undefined" && "ontouchend" in document);
+
+    setStoreUrl(isIOS ? IOS_APP_STORE_URL : ANDROID_PLAY_STORE_URL);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY || 0);
