@@ -4,23 +4,31 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const HERO_MOCKUP_SRC = "/hero-mockup.png";
 
+const IOS_APP_STORE_URL =
+  "https://apps.apple.com/it/app/echo-events/id6759982492";
+
+const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.partydispo.app";
+
+const STORE_URL = IOS_APP_STORE_URL;
+
 const featureCards = [
   {
     eyebrow: "Inviti",
-    title: "Crea un invito che sembra davvero un evento.",
-    text: "Link privati, approvazioni e dettagli dell’evento in un flusso semplice e molto più bello della solita chat.",
+    title: "Crea un invito che sembra davvero un evento",
+    text: "Link privati, approvazioni e dettagli dell’evento in un flusso semplice e molto più bello della solita chat",
     accent: "#ff84c1",
   },
   {
     eyebrow: "Gestione",
-    title: "Tieni tutto sotto controllo senza impazzire.",
-    text: "Partecipanti, conferme, richieste e pagamenti organizzati in un’unica esperienza pensata per il telefono.",
+    title: "Tieni tutto sotto controllo senza impazzire",
+    text: "Partecipanti, conferme, richieste e pagamenti organizzati in un’unica esperienza pensata per il telefono",
     accent: "#7dbfff",
   },
   {
     eyebrow: "Memories",
-    title: "Rivivi la serata con una disposable gallery.",
-    text: "Le foto si sbloccano al momento giusto, così l’evento resta vivo anche dopo la festa.",
+    title: "Rivivi la serata con una disposable gallery",
+    text: "Le foto si sbloccano al momento giusto, così l’evento resta vivo anche dopo la festa",
     accent: "#ffd36a",
   },
 ];
@@ -34,40 +42,40 @@ const miniStats = [
 const showcaseCards = [
   {
     title: "Invita solo chi vuoi tu",
-    text: "Echo è pensata per eventi privati: richieste, approvazioni e controllo completo della lista.",
+    text: "echo è pensata per eventi privati: richieste, approvazioni e controllo completo della lista",
   },
   {
     title: "Gestisci anche colletta e conferme",
-    text: "Quando serve, puoi tenere ordinati pagamenti, quote e stato degli invitati senza uscire dal flusso dell’evento.",
+    text: "Quando serve, puoi tenere ordinati pagamenti, quote e stato degli invitati senza uscire dal flusso dell’evento",
   },
   {
     title: "Rendi la serata più memorabile",
-    text: "Le foto non sono solo una gallery: diventano parte dell’esperienza, con un reveal più divertente e curato.",
+    text: "Le foto non sono solo una gallery: diventano parte dell’esperienza, con un reveal più divertente e curato",
   },
 ];
 
 const reviews = [
   {
     quote:
-      "Finalmente un modo bello e ordinato per organizzare una festa privata senza perdersi tra chat, liste e conferme sparse.",
+      "Finalmente un modo bello e ordinato per organizzare una festa privata senza perdersi tra chat, liste e conferme sparse",
     name: "Marco R.",
     place: "Milano",
   },
   {
     quote:
-      "La parte migliore è la gestione degli invitati: approvazioni, presenza e dettagli evento tutto nello stesso posto.",
+      "La parte migliore è la gestione degli invitati: approvazioni, presenza e dettagli evento tutto nello stesso posto",
     name: "Chiara T.",
     place: "Bologna",
   },
   {
     quote:
-      "L’effetto disposable camera dà davvero personalità alla serata. Non sembra la solita app per eventi.",
+      "L’effetto disposable camera dà davvero personalità alla serata. Non sembra la solita app per eventi",
     name: "Luca P.",
     place: "Roma",
   },
   {
     quote:
-      "Molto chiara, molto pulita e soprattutto coerente con un uso mobile reale. Sembra un prodotto rifinito davvero bene.",
+      "Molto chiara, molto pulita e soprattutto coerente con un uso mobile reale. Sembra un prodotto rifinito davvero bene",
     name: "Giulia S.",
     place: "Torino",
   },
@@ -153,8 +161,12 @@ export default function Home() {
       <main className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pb-24 pt-6 sm:px-8 lg:px-10">
         <header className="sticky top-4 z-40 flex items-center justify-between rounded-full border border-black/8 bg-white/68 px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.05)] backdrop-blur-xl animate-fade-up">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">
-              e
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-black/8 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.08)]">
+              <img
+                src="/icon_new_new.png"
+                alt="echo logo"
+                className="h-full w-full object-cover"
+              />
             </div>
             <span className="text-sm font-medium text-black/72">echo</span>
           </div>
@@ -172,7 +184,9 @@ export default function Home() {
           </nav>
 
           <a
-            href="/get"
+            href={STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex h-10 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:bg-black/90"
           >
             Scarica l’app
@@ -196,18 +210,20 @@ export default function Home() {
               </div>
 
               <h1 className="mt-7 max-w-5xl text-5xl font-semibold leading-[0.92] tracking-[-0.085em] text-black sm:text-7xl lg:text-[108px]">
-                L’app che rende le feste più belle, più semplici, più vive.
+                L’app che rende le feste più belle, più semplici, più vive
               </h1>
 
               <p className="mt-6 max-w-xl text-base leading-8 text-black/52 sm:text-lg">
-                Echo ti aiuta a organizzare eventi privati con inviti curati, gestione smart degli invitati,
-                pagamenti ordinati e una disposable gallery pensata per far parlare della serata anche dopo.
+                echo ti aiuta a organizzare eventi privati con inviti curati, gestione smart degli invitati,
+                pagamenti ordinati e una disposable gallery pensata per far parlare della serata anche dopo
               </p>
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <a
                   className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition duration-300 hover:bg-black/90 hover:-translate-y-0.5 animate-soft-breathe"
-                  href="/get"
+                  href={STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   Scarica echo
                 </a>
@@ -248,7 +264,7 @@ export default function Home() {
                 >
                   <img
                     src={HERO_MOCKUP_SRC}
-                    alt="Echo app preview"
+                    alt="echo app preview"
                     className="h-auto w-full object-contain drop-shadow-[0_60px_120px_rgba(15,23,42,0.2)] transition duration-500 group-hover:-translate-y-1 group-hover:rotate-[1deg] animate-mockup-drift"
                   />
                 </div>
@@ -259,12 +275,12 @@ export default function Home() {
 
         <section id="showcase" className="border-t border-black/8 py-16 sm:py-20">
           <div className="max-w-2xl">
-            <SectionBadge>Designed to convert</SectionBadge>
+            <SectionBadge>Perchè echo</SectionBadge>
             <h2 className="mt-5 text-3xl font-semibold tracking-tight text-black sm:text-5xl">
-              Una landing deve far venire voglia di scaricare l’app. Tutto qui spinge in quella direzione.
+              I nostri punti forti
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-8 text-black/50 sm:text-lg">
-              Per questo il messaggio è chiaro, le schermate sono protagoniste e i punti forti dell’app si capiscono subito.
+              La nostra app può facilitarti la vita e lo ti spiegheremo perchè
             </p>
           </div>
 
@@ -292,7 +308,7 @@ export default function Home() {
           <div className="max-w-2xl">
             <SectionBadge>Features</SectionBadge>
             <h2 className="mt-5 text-3xl font-semibold tracking-tight text-black sm:text-4xl">
-              Tutto quello che serve per gestire un evento privato, senza attriti.
+              Tutto quello che serve per gestire un evento privato, senza attriti
             </h2>
           </div>
 
@@ -317,7 +333,7 @@ export default function Home() {
           <div className="max-w-2xl">
             <SectionBadge>Social proof</SectionBadge>
             <h2 className="mt-5 text-3xl font-semibold tracking-tight text-black sm:text-4xl">
-              Pensata per chi organizza serate che devono funzionare davvero.
+              Pensata per chi organizza serate che devono funzionare davvero
             </h2>
           </div>
 
@@ -334,14 +350,16 @@ export default function Home() {
           <div className="rounded-[38px] border border-black/8 bg-white/76 px-6 py-10 text-center shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur-xl sm:px-10 sm:py-14 animate-fade-up-delay-1">
             <SectionBadge>Download echo</SectionBadge>
             <h2 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold tracking-tight text-black sm:text-5xl">
-              La prossima festa che organizzi può sembrare già un ricordo prima ancora di iniziare.
+              La prossima festa che organizzi può sembrare già un ricordo prima ancora di iniziare
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-black/50">
-              Scarica echo e trasforma inviti, gestione e gallery in un’esperienza più curata, più condivisibile e molto più memorabile.
+              Scarica echo e trasforma inviti, gestione e gallery in un’esperienza più curata, più condivisibile e molto più memorabile
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a
-                href="/get"
+                href={STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
               >
                 Scarica l’app
@@ -357,12 +375,17 @@ export default function Home() {
         </section>
 
         <footer className="flex flex-col items-center justify-between gap-4 border-t border-black/8 py-8 text-sm text-black/35 sm:flex-row">
-          <div>© 2026 echo. All rights reserved.</div>
+          <div>© 2026 echo. All rights reserved</div>
           <div className="flex items-center gap-6">
             <a href="/privacy" className="transition hover:text-black/70">
               Privacy
             </a>
-            <a href="/get" className="transition hover:text-black/70">
+            <a
+              href={STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition hover:text-black/70"
+            >
               Scarica echo
             </a>
           </div>
