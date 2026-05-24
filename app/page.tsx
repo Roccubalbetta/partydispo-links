@@ -10,25 +10,38 @@ const IOS_APP_STORE_URL =
 const ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.partydispo.app";
 
+
 const STORE_URL = IOS_APP_STORE_URL;
+
+const getStoreUrl = () => {
+  if (typeof window === "undefined") return IOS_APP_STORE_URL;
+
+  const ua = navigator.userAgent || navigator.vendor || "";
+
+  if (/android/i.test(ua)) {
+    return ANDROID_PLAY_STORE_URL;
+  }
+
+  return IOS_APP_STORE_URL;
+};
 
 const featureCards = [
   {
     eyebrow: "Inviti",
-    title: "Crea un invito che sembra davvero un evento",
+    title: "Crea un invito pensato per la tua festa",
     text: "Link privati, approvazioni e dettagli dell’evento in un flusso semplice e molto più bello della solita chat",
     accent: "#ff84c1",
   },
   {
     eyebrow: "Gestione",
-    title: "Tieni tutto sotto controllo senza impazzire",
+    title: "Tieni tutto sotto controllo con un solo click",
     text: "Partecipanti, conferme, richieste e pagamenti organizzati in un’unica esperienza pensata per il telefono",
     accent: "#7dbfff",
   },
   {
     eyebrow: "Memories",
-    title: "Rivivi la serata con una disposable gallery",
-    text: "Le foto si sbloccano al momento giusto, così l’evento resta vivo anche dopo la festa",
+    title: "Rivivi la serata nella galleria delle foto",
+    text: "Le foto si sbloccano al momento giusto, così l’evento resta vivo anche dopo la festa ma con un tocco vintage",
     accent: "#ffd36a",
   },
 ];
@@ -184,7 +197,7 @@ export default function Home() {
           </nav>
 
           <a
-            href={STORE_URL}
+            href={getStoreUrl()}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-10 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:bg-black/90"
@@ -221,7 +234,7 @@ export default function Home() {
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <a
                   className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition duration-300 hover:bg-black/90 hover:-translate-y-0.5 animate-soft-breathe"
-                  href={STORE_URL}
+                  href={getStoreUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -280,7 +293,7 @@ export default function Home() {
               I nostri punti forti
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-8 text-black/50 sm:text-lg">
-              La nostra app può facilitarti la vita e lo ti spiegheremo perchè
+              Non è mai esistita un app così semplice da usare e così curata per organizzare eventi privati. Ecco cosa la rende diversa da tutto quello che c’è là fuori
             </p>
           </div>
 
@@ -357,7 +370,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a
-                href={STORE_URL}
+                href={getStoreUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-12 items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/90"
@@ -381,7 +394,7 @@ export default function Home() {
               Privacy
             </a>
             <a
-              href={STORE_URL}
+              href={getStoreUrl()}
               target="_blank"
               rel="noopener noreferrer"
               className="transition hover:text-black/70"
