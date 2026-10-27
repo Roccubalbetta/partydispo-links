@@ -9,10 +9,9 @@ export const ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.partydispo.app";
 
 export const HUAWEI_APPGALLERY_URL =
-  process.env.NEXT_PUBLIC_HUAWEI_APPGALLERY_URL ||
-  "https://echo-app.it/scarica";
+  process.env.NEXT_PUBLIC_HUAWEI_APPGALLERY_URL || "/get";
 
-export const DOWNLOAD_FALLBACK_URL = "https://echo-app.it/scarica";
+export const DOWNLOAD_FALLBACK_URL = "/get";
 
 export type DetectedPlatform = "iphone" | "android" | "huawei" | "other";
 

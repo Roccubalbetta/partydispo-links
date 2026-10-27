@@ -198,6 +198,10 @@ const IOS_APP_STORE_URL =
 
 const ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.partydispo.app";
+
+// Desktop, iPad e dispositivi non riconosciuti: la pagina di download di questo
+// stesso sito. Prima puntava a echo-app.it, un dominio che non esiste.
+const DOWNLOAD_FALLBACK_URL = "/get";
 function fmtDay(dateIso: string | null) {
   if (!dateIso) return null;
 
@@ -259,14 +263,13 @@ function hasCompletedDrinkPrefs(currentPrefs: DrinkPrefs, currentIntoxLevel: num
   return safeIntoxLevel === 0 ? !alcoholSelected : alcoholSelected;
 }
 
-export default function InvitePage({ params }: { params: { token: string } }) {
+export default function InvitePage() {
+  // `params` non va letto come prop: in Next 16 è una Promise e leggerlo
+  // direttamente è un errore. Il token arriva da useParams / pathname.
   const routeParams = useParams<{ token?: string | string[] }>();
   const pathname = usePathname();
 
   const token = useMemo(() => {
-    const fromProps = params?.token;
-    if (typeof fromProps === "string" && fromProps.trim()) return fromProps;
-
     const rp = routeParams?.token;
     if (typeof rp === "string" && rp.trim()) return rp;
     if (Array.isArray(rp) && typeof rp[0] === "string" && rp[0].trim()) return rp[0];
@@ -283,7 +286,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     }
 
     return "";
-  }, [params, routeParams, pathname]);
+  }, [routeParams, pathname]);
 
   const [invite, setInvite] = useState<InviteRow | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("Evento");
@@ -291,6 +294,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const [step, setStep] = useState<Step>("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -328,6 +332,16 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     if (!rsvpStorageKey) return;
     try {
       window.localStorage.setItem(rsvpStorageKey, v);
+    } catch {
+      // ignore
+    }
+  }
+
+  function clearRsvp() {
+    if (typeof window === "undefined") return;
+    if (!rsvpStorageKey) return;
+    try {
+      window.localStorage.removeItem(rsvpStorageKey);
     } catch {
       // ignore
     }
@@ -414,8 +428,19 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step, wantsToJoin]);
 
+  // Se l'ospite ha già risposto da questo dispositivo, non rimostrare i bottoni:
+  // riapriamo direttamente la schermata di conferma.
   useEffect(() => {
     if (step !== "ready") return;
+
+    const saved = loadSavedRsvp();
+    if (saved) {
+      setResultStatus(saved);
+      setPendingChoice(null);
+      setStep("done");
+      return;
+    }
+
     setResultStatus(null);
     setPendingChoice(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -445,11 +470,11 @@ if (isIPhone) {
 } else if (isAndroid) {
   target = ANDROID_PLAY_STORE_URL;
 } else if (isIPad) {
-  // iPad non supportato: mandiamo a una landing che spieghi
-  target = "https://echo-app.it/scarica";
+  // iPad non supportato: mandiamo alla pagina di download di questo stesso sito
+  target = DOWNLOAD_FALLBACK_URL;
 } else {
   // Desktop o dispositivo non riconosciuto
-  target = "https://echo-app.it/scarica";
+  target = DOWNLOAD_FALLBACK_URL;
 }
   
     try {
@@ -515,7 +540,31 @@ if (isIPhone) {
         }
 
         const row = Array.isArray(data) ? data[0] : (data as any);
-        if (!cancelled && row) {
+
+        // Link inesistente o revocato: dirlo subito, senza far fare all'ospite
+        // tutta la registrazione per poi scoprirlo dopo il codice via email.
+        if (!row) {
+          if (!cancelled) {
+            setInvite(null);
+            setStep("error");
+            setErrorText("Invito non trovato o non più valido.");
+          }
+          return;
+        }
+
+        if (row.expires_at) {
+          const exp = new Date(row.expires_at).getTime();
+          if (Number.isFinite(exp) && exp < Date.now()) {
+            if (!cancelled) {
+              setInvite(null);
+              setStep("error");
+              setErrorText("Questo invito è scaduto.");
+            }
+            return;
+          }
+        }
+
+        if (!cancelled) {
           const t = row.party_title;
           const d = fmtDay(row.party_date ?? null);
 
@@ -846,7 +895,9 @@ if (isIPhone) {
 
       if (data?.ok) {
         saveRsvp(next);
+        setPendingChoice(null);
         setResultStatus(next);
+        setStep("done");
       } else {
         setPendingChoice(null);
         setErrorText("Non sono riuscito a registrare la risposta. Riprova.");
@@ -883,8 +934,10 @@ if (isIPhone) {
 
       if (data?.ok) {
         saveRsvp("yes");
+        setPendingChoice(null);
         setResultStatus("yes");
         setWantsToJoin(false);
+        setStep("done");
       } else {
         setPendingChoice(null);
         setErrorText("Non sono riuscito a inviare la tua partecipazione. Riprova.");
@@ -898,6 +951,21 @@ if (isIPhone) {
       setBusy(false);
     }
   }
+
+  // L'errore compare in cima alla scheda: se l'ospite ha scorso fino ai bottoni
+  // o alle preferenze resterebbe fuori schermo e sembrerebbe che non sia
+  // successo niente. Lo portiamo in vista appena appare.
+  useEffect(() => {
+    if (!errorText) return;
+    if (step === "loading" || step === "error") return;
+    const el = errorRef.current;
+    if (!el) return;
+    try {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch {
+      el.scrollIntoView();
+    }
+  }, [errorText, step]);
 
   console.log("[invite-web] render state", {
     step,
@@ -934,7 +1002,11 @@ if (isIPhone) {
   <h1 style={S.h1}>Sei stato invitato</h1>
 </div>
 
-              {errorText ? <p style={{ ...S.muted, marginTop: 10, textAlign: "center" }}>{errorText}</p> : null}
+              {errorText ? (
+                <p ref={errorRef} style={{ ...S.errorText, marginTop: 10 }}>
+                  {errorText}
+                </p>
+              ) : null}
 
               <div style={S.divider} />
 
@@ -1269,18 +1341,46 @@ if (isIPhone) {
 
 {step === "done" ? (
   <div style={S.confirm}>
-    <div style={S.confirmTitle}>Richiesta inviata.</div>
+    <div style={S.confirmTitle}>
+      {resultStatus === "no" ? "Risposta inviata." : "Richiesta inviata."}
+    </div>
 
     <div style={{ ...S.muted, textAlign: "center" }}>
-      L'organizzatore riceverà la tua richiesta e ti confermerà al più presto.
+      {resultStatus === "no"
+        ? "Abbiamo detto all'organizzatore che non ci sarai. Se cambi idea, riapri questo link."
+        : "L'organizzatore riceverà la tua richiesta e ti confermerà al più presto."}
     </div>
+
+    {resultStatus === "no" ? (
+      <>
+        <div style={{ height: 12 }} />
+        <button
+          style={S.secondaryBtn}
+          onClick={() => {
+            clearRsvp();
+            setResultStatus(null);
+            setPendingChoice(null);
+            setErrorText(null);
+            setStep("ready");
+          }}
+        >
+          Cambia risposta
+        </button>
+      </>
+    ) : null}
 
     <div style={S.divider} />
 
     <div style={S.confirmBox}>
-      <div style={S.confirmBoxTitle}>Vuoi sapere subito quando sei dentro?</div>
+      <div style={S.confirmBoxTitle}>
+        {resultStatus === "no"
+          ? "Vuoi restare aggiornato sulle prossime feste?"
+          : "Vuoi sapere subito quando sei dentro?"}
+      </div>
       <div style={{ ...S.muted, textAlign: "center" }}>
-        Scarica Echo e ricevi una notifica non appena l'organizzatore ti approva.
+        {resultStatus === "no"
+          ? "Con Echo ricevi gli inviti e gli aggiornamenti direttamente sul telefono."
+          : "Scarica Echo e ricevi una notifica non appena l'organizzatore ti approva."}
       </div>
 
       <div style={{ height: 12 }} />
@@ -1289,7 +1389,7 @@ if (isIPhone) {
         Scarica Echo
       </button>
 
-      <div style={S.ctaSmall}>Altrimenti guarda nelle mail</div>
+      {resultStatus === "no" ? null : <div style={S.ctaSmall}>Altrimenti guarda nelle mail</div>}
     </div>
   </div>
 ) : null}
@@ -1335,6 +1435,16 @@ const S: Record<string, React.CSSProperties> = {
   h1: { margin: 0, fontSize: 28, fontWeight: 950, letterSpacing: -0.3, textAlign: "center" },
   muted: { color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: "18px" },
   divider: { height: 1, background: "rgba(255,255,255,0.10)", margin: "16px 0" },
+  errorText: {
+    color: "#ffb4ab",
+    fontSize: 14,
+    lineHeight: "18px",
+    textAlign: "center",
+    background: "rgba(255,120,110,0.10)",
+    border: "1px solid rgba(255,120,110,0.28)",
+    borderRadius: 12,
+    padding: "10px 12px",
+  },
   sectionTitleCenter: { fontWeight: 950, marginBottom: 6, textAlign: "center" },
   input: {
     width: "100%",
