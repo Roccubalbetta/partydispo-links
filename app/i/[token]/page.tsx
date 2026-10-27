@@ -294,6 +294,7 @@ export default function InvitePage() {
 
   const [step, setStep] = useState<Step>("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -951,6 +952,21 @@ if (isIPhone) {
     }
   }
 
+  // L'errore compare in cima alla scheda: se l'ospite ha scorso fino ai bottoni
+  // o alle preferenze resterebbe fuori schermo e sembrerebbe che non sia
+  // successo niente. Lo portiamo in vista appena appare.
+  useEffect(() => {
+    if (!errorText) return;
+    if (step === "loading" || step === "error") return;
+    const el = errorRef.current;
+    if (!el) return;
+    try {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch {
+      el.scrollIntoView();
+    }
+  }, [errorText, step]);
+
   console.log("[invite-web] render state", {
     step,
     wantsToJoin,
@@ -986,7 +1002,11 @@ if (isIPhone) {
   <h1 style={S.h1}>Sei stato invitato</h1>
 </div>
 
-              {errorText ? <p style={{ ...S.muted, marginTop: 10, textAlign: "center" }}>{errorText}</p> : null}
+              {errorText ? (
+                <p ref={errorRef} style={{ ...S.errorText, marginTop: 10 }}>
+                  {errorText}
+                </p>
+              ) : null}
 
               <div style={S.divider} />
 
@@ -1415,6 +1435,16 @@ const S: Record<string, React.CSSProperties> = {
   h1: { margin: 0, fontSize: 28, fontWeight: 950, letterSpacing: -0.3, textAlign: "center" },
   muted: { color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: "18px" },
   divider: { height: 1, background: "rgba(255,255,255,0.10)", margin: "16px 0" },
+  errorText: {
+    color: "#ffb4ab",
+    fontSize: 14,
+    lineHeight: "18px",
+    textAlign: "center",
+    background: "rgba(255,120,110,0.10)",
+    border: "1px solid rgba(255,120,110,0.28)",
+    borderRadius: 12,
+    padding: "10px 12px",
+  },
   sectionTitleCenter: { fontWeight: 950, marginBottom: 6, textAlign: "center" },
   input: {
     width: "100%",
