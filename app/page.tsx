@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 const HERO_MOCKUP_SRC = "/hero-mockup.png";
+
+// Il valore non cambia mai dopo il mount: non c'e' niente a cui iscriversi.
+function subscribeToNothing() {
+  return () => {};
+}
 
 const IOS_APP_STORE_URL =
   "https://apps.apple.com/it/app/echo-events/id6759982492";
@@ -104,23 +109,28 @@ function SectionBadge({ children }: { children: ReactNode }) {
   );
 }
 
+function getStoreUrlInBrowser() {
+  const ua = navigator.userAgent || navigator.vendor || "";
+
+  const isIOS =
+    /iPad|iPhone|iPod/i.test(ua) ||
+    // iPadOS 13+ si presenta come "Macintosh": lo distinguo dal supporto touch
+    (/Macintosh/i.test(ua) && typeof document !== "undefined" && "ontouchend" in document);
+
+  return isIOS ? IOS_APP_STORE_URL : ANDROID_PLAY_STORE_URL;
+}
+
 export default function Home() {
   const [scrollY, setScrollY] = useState(0);
 
-  // Store URL logic: default Play Store (Android/desktop), iOS gets App Store.
-  // Detection runs client-side inside the component so it actually updates the UI.
-  const [storeUrl, setStoreUrl] = useState(ANDROID_PLAY_STORE_URL);
-
-  useEffect(() => {
-    const ua = navigator.userAgent || navigator.vendor || "";
-
-    const isIOS =
-      /iPad|iPhone|iPod/i.test(ua) ||
-      // iPadOS 13+ si presenta come "Macintosh": lo distinguo dal supporto touch
-      (/Macintosh/i.test(ua) && typeof document !== "undefined" && "ontouchend" in document);
-
-    setStoreUrl(isIOS ? IOS_APP_STORE_URL : ANDROID_PLAY_STORE_URL);
-  }, []);
+  // Il negozio: Play Store di default (Android e desktop), App Store su iOS.
+  // Lo user agent esiste solo nel browser, quindi il server prerende il link
+  // Play Store e il client lo corregge al primo render utile.
+  const storeUrl = useSyncExternalStore(
+    subscribeToNothing,
+    getStoreUrlInBrowser,
+    () => ANDROID_PLAY_STORE_URL,
+  );
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY || 0);
