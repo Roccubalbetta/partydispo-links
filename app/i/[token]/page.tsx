@@ -184,12 +184,6 @@ function normalizeInviteSelectedProducts(invite: InviteRow | null): DrinkPrefKey
     collectDrinkPrefsFromUnknown(set, source.productsAvailable);
   }
 
-  console.log("[invite-web] organizer visible products", {
-    token: invite.token,
-    invite,
-    normalized: Array.from(set),
-  });
-
   return Array.from(set);
 }
 
@@ -412,18 +406,6 @@ export default function InvitePage() {
   const hasVisibleProducts = visibleAlcoholKeys.length > 0 || visibleSoftDrinkKeys.length > 0;
 
   useEffect(() => {
-    console.log("[invite-web] preferences gate", {
-      step,
-      wantsToJoin,
-      requiresPreferencesBeforeJoin,
-      invitePartyMode: invite?.party_mode ?? null,
-      inviteShowDrinkPreferences: invite?.show_drink_preferences ?? null,
-      invitePartyId: invite?.party_id ?? null,
-      sessionUserId,
-    });
-  }, [step, wantsToJoin, requiresPreferencesBeforeJoin, invite, sessionUserId]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step, wantsToJoin]);
@@ -594,7 +576,6 @@ if (isIPhone) {
         if (error) throw error;
 
         const row = Array.isArray(data) ? data[0] : (data as any);
-        console.log("[invite-web] get_invite_public row", row);
         if (!row) {
           setInvite(null);
           setStep("error");
@@ -864,17 +845,7 @@ if (isIPhone) {
 
   async function onRespond(next: "yes" | "no") {
     try {
-      console.log("[invite-web] onRespond:start", {
-        next,
-        wantsToJoin,
-        requiresPreferencesBeforeJoin,
-        invitePartyMode: invite?.party_mode ?? null,
-        inviteShowDrinkPreferences: invite?.show_drink_preferences ?? null,
-        invitePartyId: invite?.party_id ?? null,
-        sessionUserId,
-      });
       if (next === "yes" && requiresPreferencesBeforeJoin) {
-        console.log("[invite-web] onRespond:preferences-required -> opening prefs UI");
         setPendingChoice(null);
         setResultStatus(null);
         setWantsToJoin(true);
@@ -967,14 +938,6 @@ if (isIPhone) {
     }
   }, [errorText, step]);
 
-  console.log("[invite-web] render state", {
-    step,
-    wantsToJoin,
-    requiresPreferencesBeforeJoin,
-    showPrefsCard: wantsToJoin && requiresPreferencesBeforeJoin,
-    invitePartyMode: invite?.party_mode ?? null,
-    inviteShowDrinkPreferences: invite?.show_drink_preferences ?? null,
-  });
   return (
     <main style={S.page}>
       <div style={S.bg} />
