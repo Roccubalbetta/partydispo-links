@@ -120,9 +120,9 @@ async function notifyOrganizerPaymentUpdate(params: {
     let detailedMessage = "Failed to send a request to the edge function";
 
     try {
-      const maybeAny = error as any;
-      if (maybeAny?.context?.json) {
-        const errJson = await maybeAny.context.json();
+      const conContesto = error as { context?: { json?: () => Promise<unknown> } };
+      if (conContesto?.context?.json) {
+        const errJson = (await conContesto.context.json()) as { error?: string; message?: string } | null;
         detailedMessage = errJson?.error ?? errJson?.message ?? detailedMessage;
       } else if (error instanceof Error && error.message) {
         detailedMessage = error.message;
@@ -198,9 +198,9 @@ export default function GuestPaymentPage() {
       setMsg("La tua richiesta di pagamento in contanti è stata inviata. Riceverai una mail di conferma quando l’organizzatore completerà la verifica del pagamento.");
       await load();
       setRequestSent(true);
-    } catch (e: any) {
+    } catch (e) {
       console.error("[pay-link] chooseCash error", e);
-      setMsg(e?.message ?? "Errore.");
+      setMsg((e as { message?: string })?.message ?? "Errore.");
     } finally {
       setBusy(false);
     }
@@ -227,9 +227,9 @@ export default function GuestPaymentPage() {
       setMsg(`La tua richiesta di conferma pagamento è stata inviata all’organizzatore. Riceverai una mail di conferma quando il pagamento sarà verificato e completato.`);
       await load();
       setRequestSent(true);
-    } catch (e: any) {
+    } catch (e) {
       console.error("[pay-link] markPaid error", e);
-      setMsg(e?.message ?? "Errore.");
+      setMsg((e as { message?: string })?.message ?? "Errore.");
     } finally {
       setBusy(false);
     }
@@ -312,7 +312,7 @@ export default function GuestPaymentPage() {
               <div style={styles.ctaBoxStrong}>
                 <div style={styles.ctaTitleStrong}>Scegli come pagare</div>
                 <div style={styles.ctaTextStrong}>
-                  In base a cosa ha scelto l'organizzazione puoi pagare con Satispay, PayPal o contanti. Se paghi online, torna qui e conferma: riceverai una mail quando l’organizzatore verifica il pagamento.
+                  In base a cosa ha scelto l&apos;organizzazione puoi pagare con Satispay, PayPal o contanti. Se paghi online, torna qui e conferma: riceverai una mail quando l’organizzatore verifica il pagamento.
                 </div>
               </div>
 

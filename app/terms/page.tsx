@@ -86,9 +86,9 @@ export default function TermsOfUsePage() {
         </P>
 
         <P>
-          I presenti Termini di utilizzo disciplinano l'accesso e l'uso di echo, inclusi l'app mobile,
+          I presenti Termini di utilizzo disciplinano l&apos;accesso e l&apos;uso di echo, inclusi l&apos;app mobile,
           il sito web e i servizi correlati. Accedendo o utilizzando echo, accetti di essere vincolato
-          dai presenti Termini di utilizzo, dall'Informativa sulla Privacy e dalle Regole della community.
+          dai presenti Termini di utilizzo, dall&apos;Informativa sulla Privacy e dalle Regole della community.
         </P>
 
         <SectionTitle>1. Requisiti di idoneità</SectionTitle>
@@ -110,7 +110,7 @@ export default function TermsOfUsePage() {
         <P>
           echo può consentire agli utenti di creare, caricare, inviare, condividere o mostrare contenuti, inclusi
           dettagli di eventi, inviti, informazioni di partecipazione, conferme relative ai pagamenti, testi,
-          immagini e altri materiali ("Contenuti degli utenti").
+          immagini e altri materiali (&quot;Contenuti degli utenti&quot;).
         </P>
         <P>
           Rimani responsabile dei Contenuti degli utenti che invii e delle tue interazioni con altri utenti.
@@ -122,13 +122,13 @@ export default function TermsOfUsePage() {
         </P>
         <P>Non devi utilizzare echo per creare, caricare, condividere o promuovere contenuti che siano:</P>
         <ul style={{ paddingLeft: 18, margin: "8px 0" }}>
-          <Li>offensivi, diffamatori, molesti, abusivi, pieni d'odio o minacciosi;</Li>
+          <Li>offensivi, diffamatori, molesti, abusivi, pieni d&apos;odio o minacciosi;</Li>
           <Li>sessualmente espliciti o sfruttatori;</Li>
           <Li>violenti o che incoraggino la violenza;</Li>
           <Li>discriminatori sulla base di razza, etnia, nazionalità, religione, genere, orientamento sessuale, disabilità o caratteristiche protette simili;</Li>
-          <Li>fraudolenti, ingannevoli o finalizzati a impersonare un'altra persona;</Li>
+          <Li>fraudolenti, ingannevoli o finalizzati a impersonare un&apos;altra persona;</Li>
           <Li>illeciti o volti a promuovere attività illegali;</Li>
-          <Li>lesivi della privacy o dei diritti di un'altra persona.</Li>
+          <Li>lesivi della privacy o dei diritti di un&apos;altra persona.</Li>
         </ul>
         <P>
           Qualsiasi condotta abusiva verso altri utenti, inclusi molestie, intimidazioni, truffe o contatti indesiderati ripetuti,
@@ -141,8 +141,8 @@ export default function TermsOfUsePage() {
           e per bloccare utenti abusivi.
         </P>
         <P>
-          Quando un utente blocca un altro utente, i contenuti dell'utente bloccato possono essere rimossi immediatamente
-          dall'esperienza dell'utente che ha effettuato il blocco, ove applicabile.
+          Quando un utente blocca un altro utente, i contenuti dell&apos;utente bloccato possono essere rimossi immediatamente
+          dall&apos;esperienza dell&apos;utente che ha effettuato il blocco, ove applicabile.
         </P>
         <P>
           Utilizzando echo, riconosci e accetti che le segnalazioni e le azioni di blocco possano essere esaminate
@@ -151,8 +151,8 @@ export default function TermsOfUsePage() {
 
         <SectionTitle>6. Moderazione e applicazione delle regole</SectionTitle>
         <P>
-          echo si riserva il diritto, ma non l'obbligo, di esaminare, filtrare, limitare, rimuovere
-          o rifiutare contenuti; avvisare utenti; limitare l'accesso a funzionalità; sospendere account; o terminare permanentemente account
+          echo si riserva il diritto, ma non l&apos;obbligo, di esaminare, filtrare, limitare, rimuovere
+          o rifiutare contenuti; avvisare utenti; limitare l&apos;accesso a funzionalità; sospendere account; o terminare permanentemente account
           che violino i presenti Termini, le Regole della community o la legge applicabile.
         </P>
         <P>
@@ -164,7 +164,7 @@ export default function TermsOfUsePage() {
           o che assumano comportamenti abusivi.
         </P>
 
-        <SectionTitle>7. Licenza d'uso di echo</SectionTitle>
+        <SectionTitle>7. Licenza d&apos;uso di echo</SectionTitle>
         <P>
           A condizione che tu rispetti i presenti Termini, echo ti concede una licenza limitata, non esclusiva,
           non trasferibile e revocabile per accedere e utilizzare il servizio per finalità personali e non commerciali.
@@ -201,7 +201,7 @@ export default function TermsOfUsePage() {
 
         <SectionTitle>11. Privacy</SectionTitle>
         <P>
-          L'utilizzo di echo è disciplinato anche dalla nostra Informativa sulla Privacy. Puoi contattarci a{" "}
+          L&apos;utilizzo di echo è disciplinato anche dalla nostra Informativa sulla Privacy. Puoi contattarci a{" "}
           <a href={`mailto:${contactEmail}`} style={linkStyle}>
             {contactEmail}
           </a>{" "}
@@ -210,14 +210,14 @@ export default function TermsOfUsePage() {
 
         <SectionTitle>12. Sospensione e cessazione</SectionTitle>
         <P>
-          Puoi interrompere l'utilizzo di echo in qualsiasi momento. echo può sospendere o terminare il tuo accesso in qualsiasi momento,
+          Puoi interrompere l&apos;utilizzo di echo in qualsiasi momento. echo può sospendere o terminare il tuo accesso in qualsiasi momento,
           con o senza preavviso, se riteniamo ragionevolmente che tu abbia violato i presenti Termini, creato rischi per altri utenti,
           esposto echo a responsabilità legali o tenuto comportamenti abusivi o inappropriati.
         </P>
 
         <SectionTitle>13. Esclusioni di garanzia</SectionTitle>
         <P>
-          echo è fornita "così com'è" e "come disponibile", nella massima misura consentita dalla legge.
+          echo è fornita &quot;così com&apos;è&quot; e &quot;come disponibile&quot;, nella massima misura consentita dalla legge.
           Non garantiamo disponibilità ininterrotta, funzionamento privo di errori o che tutti i contenuti siano sempre sicuri o accurati.
         </P>
 
@@ -225,13 +225,13 @@ export default function TermsOfUsePage() {
         <P>
           Nella misura massima consentita dalla legge, echo e i suoi gestori non saranno responsabili per danni indiretti,
           incidentali, speciali, consequenziali, esemplari o punitivi, né per perdita di profitti, dati, avviamento o opportunità di business,
-          derivanti da o connessi all'utilizzo del servizio.
+          derivanti da o connessi all&apos;utilizzo del servizio.
         </P>
 
         <SectionTitle>15. Modifiche ai Termini</SectionTitle>
         <P>
-          Possiamo aggiornare periodicamente i presenti Termini di utilizzo. La data di "Ultimo aggiornamento" indica quando
-          sono state apportate le modifiche più recenti. Continuando a utilizzare echo dopo l'entrata in vigore dei Termini aggiornati,
+          Possiamo aggiornare periodicamente i presenti Termini di utilizzo. La data di &quot;Ultimo aggiornamento&quot; indica quando
+          sono state apportate le modifiche più recenti. Continuando a utilizzare echo dopo l&apos;entrata in vigore dei Termini aggiornati,
           accetti la versione aggiornata, nella misura consentita dalla legge.
         </P>
 

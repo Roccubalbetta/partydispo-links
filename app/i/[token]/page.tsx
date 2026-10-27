@@ -23,7 +23,7 @@ type InviteRow = {
   enabled_products?: string[] | Partial<Record<keyof DrinkPrefs, boolean>> | null;
   drink_products?: string[] | Partial<Record<keyof DrinkPrefs, boolean>> | null;
   selected_drinks?: string[] | null;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type Step = "loading" | "appChoice" | "needAuth" | "verifyCode" | "ready" | "done" | "error";
@@ -232,10 +232,11 @@ function sanitizeOtp(code: string) {
   return code.replace(/\D/g, "").trim().slice(0, 8);
 }
 
-function asMsg(e: any): string {
+function asMsg(e: unknown): string {
   if (!e) return "";
   if (typeof e === "string") return e;
-  if (e?.message && typeof e.message === "string") return e.message;
+  const msg = (e as { message?: unknown }).message;
+  if (typeof msg === "string") return msg;
   try {
     return JSON.stringify(e);
   } catch {
@@ -521,7 +522,7 @@ if (isIPhone) {
           return;
         }
 
-        const row = Array.isArray(data) ? data[0] : (data as any);
+        const row = (Array.isArray(data) ? data[0] : data) as InviteRow | null;
 
         // Link inesistente o revocato: dirlo subito, senza far fare all'ospite
         // tutta la registrazione per poi scoprirlo dopo il codice via email.
@@ -575,7 +576,7 @@ if (isIPhone) {
         const { data, error } = await supabase.rpc("get_invite_public", { p_token: token });
         if (error) throw error;
 
-        const row = Array.isArray(data) ? data[0] : (data as any);
+        const row = (Array.isArray(data) ? data[0] : data) as InviteRow | null;
         if (!row) {
           setInvite(null);
           setStep("error");
@@ -772,7 +773,7 @@ if (isIPhone) {
         return;
       }
 
-      const profilePayload: any = {
+      const profilePayload = {
         id: uid,
         first_name: fn,
         last_name: ln,
